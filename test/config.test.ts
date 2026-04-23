@@ -100,6 +100,7 @@ describe("loadConfig", () => {
       enableUnsafeLaunchProfiles: false,
       toolVerbosity: "all",
       showLaunchBehavior: true,
+      showLaunchProfile: true,
       showTurnTokenUsage: false,
       enableTelegramLogin: true,
       enableTelegramReactions: false,
@@ -144,6 +145,7 @@ describe("loadConfig", () => {
     expect(config.enableUnsafeLaunchProfiles).toBe(false);
     expect(config.toolVerbosity).toBe("summary");
     expect(config.showLaunchBehavior).toBe(true);
+    expect(config.showLaunchProfile).toBe(true);
     expect(config.showTurnTokenUsage).toBe(false);
     expect(config.enableTelegramLogin).toBe(true);
     expect(config.enableTelegramReactions).toBe(false);
@@ -330,6 +332,29 @@ describe("loadConfig", () => {
     delete process.env.SHOW_LAUNCH_BEHAVIOR;
     const config = loadConfig();
     expect(config.showLaunchBehavior).toBe(true);
+  });
+
+  it("parses SHOW_LAUNCH_PROFILE as boolean", () => {
+    process.env.TELEGRAM_BOT_TOKEN = "bot-token";
+    process.env.TELEGRAM_ALLOWED_USER_IDS = "123";
+    const truthyValues = ["true", "1", "yes"];
+    const falsyValues = ["false", "0", "no"];
+
+    for (const value of truthyValues) {
+      process.env.SHOW_LAUNCH_PROFILE = value;
+      const config = loadConfig();
+      expect(config.showLaunchProfile).toBe(true);
+    }
+
+    for (const value of falsyValues) {
+      process.env.SHOW_LAUNCH_PROFILE = value;
+      const config = loadConfig();
+      expect(config.showLaunchProfile).toBe(false);
+    }
+
+    delete process.env.SHOW_LAUNCH_PROFILE;
+    const config = loadConfig();
+    expect(config.showLaunchProfile).toBe(true);
   });
 
   it("falls back to defaults for invalid optional enum values", () => {

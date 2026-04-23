@@ -2153,14 +2153,16 @@ export async function registerCommands(bot: Bot<Context>): Promise<void> {
   ]);
 }
 
-function renderSessionInfoPlain(info: CodexSessionInfo, config: Pick<TeleCodexConfig, "showLaunchBehavior">): string {
+function renderSessionInfoPlain(info: CodexSessionInfo, config: Pick<TeleCodexConfig, "showLaunchBehavior" | "showLaunchProfile">): string {
   return [
     `Thread ID: ${info.threadId ?? "(not started yet)"}`,
     `Workspace: ${info.workspace}`,
-    config.showLaunchBehavior
-      ? `Launch profile: ${info.launchProfileLabel} (${info.launchProfileBehavior})${info.unsafeLaunch ? " [unsafe]" : ""}`
-      : `Launch profile: ${info.launchProfileLabel}`,
-    info.nextLaunchProfileId
+    config.showLaunchProfile
+      ? config.showLaunchBehavior
+        ? `Launch profile: ${info.launchProfileLabel} (${info.launchProfileBehavior})${info.unsafeLaunch ? " [unsafe]" : ""}`
+        : `Launch profile: ${info.launchProfileLabel}`
+      : undefined,
+    info.nextLaunchProfileId && config.showLaunchProfile
       ? config.showLaunchBehavior
         ? `Next launch profile: ${info.nextLaunchProfileLabel} (${info.nextLaunchProfileBehavior})${info.nextUnsafeLaunch ? " [unsafe]" : ""}`
         : `Next launch profile: ${info.nextLaunchProfileLabel}`
@@ -2173,15 +2175,17 @@ function renderSessionInfoPlain(info: CodexSessionInfo, config: Pick<TeleCodexCo
     .join("\n");
 }
 
-function renderSessionInfoHTML(info: CodexSessionInfo, config: Pick<TeleCodexConfig, "showLaunchBehavior">): string {
+function renderSessionInfoHTML(info: CodexSessionInfo, config: Pick<TeleCodexConfig, "showLaunchBehavior" | "showLaunchProfile">): string {
   return [
     `<b>Thread ID:</b> <code>${escapeHTML(info.threadId ?? "(not started yet)")}</code>`,
     `<b>Workspace:</b> <code>${escapeHTML(info.workspace)}</code>`,
-    `<b>Launch profile:</b> <code>${escapeHTML(info.launchProfileLabel)}</code>`,
-    config.showLaunchBehavior
+    config.showLaunchProfile
+      ? `<b>Launch profile:</b> <code>${escapeHTML(info.launchProfileLabel)}</code>`
+      : undefined,
+    config.showLaunchProfile && config.showLaunchBehavior
       ? `<b>Launch behavior:</b> <code>${escapeHTML(info.launchProfileBehavior)}</code>${info.unsafeLaunch ? " ⚠️" : ""}`
       : undefined,
-    info.nextLaunchProfileId
+    info.nextLaunchProfileId && config.showLaunchProfile
       ? config.showLaunchBehavior
         ? `<b>Next launch profile:</b> <code>${escapeHTML(info.nextLaunchProfileLabel ?? "")}</code> <i>(${escapeHTML(info.nextLaunchProfileBehavior ?? "")})</i>${info.nextUnsafeLaunch ? " ⚠️" : ""}`
         : `<b>Next launch profile:</b> <code>${escapeHTML(info.nextLaunchProfileLabel ?? "")}</code>`
@@ -2194,19 +2198,26 @@ function renderSessionInfoHTML(info: CodexSessionInfo, config: Pick<TeleCodexCon
     .join("\n");
 }
 
-function renderLaunchSummaryPlain(info: CodexSessionInfo, config: Pick<TeleCodexConfig, "showLaunchBehavior">): string {
+function renderLaunchSummaryPlain(info: CodexSessionInfo, config: Pick<TeleCodexConfig, "showLaunchBehavior" | "showLaunchProfile">): string {
+  if (!config.showLaunchProfile) {
+    return "";
+  }
   if (!config.showLaunchBehavior) {
     return `Launch: ${info.launchProfileLabel}`;
   }
   return `Launch: ${info.launchProfileLabel} (${info.launchProfileBehavior})${info.unsafeLaunch ? " [unsafe]" : ""}`;
 }
 
-function renderLaunchSummaryHTML(info: CodexSessionInfo, config: Pick<TeleCodexConfig, "showLaunchBehavior">): string {
+function renderLaunchSummaryHTML(info: CodexSessionInfo, config: Pick<TeleCodexConfig, "showLaunchBehavior" | "showLaunchProfile">): string {
+  if (!config.showLaunchProfile) {
+    return "";
+  }
+  const prefix = `<b>Launch:</b> <code>${escapeHTML(info.launchProfileLabel)}</code>`;
   if (!config.showLaunchBehavior) {
-    return `<b>Launch:</b> <code>${escapeHTML(info.launchProfileLabel)}</code>`;
+    return prefix;
   }
   const suffix = info.unsafeLaunch ? " ⚠️" : "";
-  return `<b>Launch:</b> <code>${escapeHTML(info.launchProfileLabel)}</code> <i>(${escapeHTML(info.launchProfileBehavior)})</i>${suffix}`;
+  return `${prefix} <i>(${escapeHTML(info.launchProfileBehavior)})</i>${suffix}`;
 }
 
 function renderToolStartMessage(toolName: string): RenderedText {

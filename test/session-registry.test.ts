@@ -109,6 +109,7 @@ describe("SessionRegistry", () => {
     enableUnsafeLaunchProfiles: false,
     toolVerbosity: "summary",
     showLaunchBehavior: true,
+    showLaunchProfile: true,
     showTurnTokenUsage: false,
     enableTelegramLogin: true,
     enableTelegramReactions: false,
