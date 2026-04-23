@@ -791,8 +791,8 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
     if (isReturning) {
       const info = session.getInfo();
       const welcome = renderWelcomeReturning(
-        renderSessionInfoHTML(info),
-        renderSessionInfoPlain(info),
+        renderSessionInfoHTML(info, config),
+        renderSessionInfoPlain(info, config),
         isTopicContext(contextKey),
         authWarning,
       );
@@ -800,8 +800,8 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
     } else {
       const welcome = renderWelcomeFirstTime(authWarning);
       const info = session.getInfo();
-      await safeReply(ctx, [welcome.html, "", renderLaunchSummaryHTML(info)].join("\n"), {
-        fallbackText: [welcome.plain, "", renderLaunchSummaryPlain(info)].join("\n"),
+      await safeReply(ctx, [welcome.html, "", renderLaunchSummaryHTML(info, config)].join("\n"), {
+        fallbackText: [welcome.plain, "", renderLaunchSummaryPlain(info, config)].join("\n"),
       });
     }
   });
@@ -996,8 +996,8 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
         const info = await session.newThread();
         updateSessionMetadata(contextKey, session);
         const label = isTopicContext(contextKey) ? "New thread created for this topic." : "New thread created.";
-        const plainText = `${label}\n\n${renderSessionInfoPlain(info)}`;
-        const html = `<b>${escapeHTML(label)}</b>\n\n${renderSessionInfoHTML(info)}`;
+        const plainText = `${label}\n\n${renderSessionInfoPlain(info, config)}`;
+        const html = `<b>${escapeHTML(label)}</b>\n\n${renderSessionInfoHTML(info, config)}`;
         await safeReply(ctx, html, { fallbackText: plainText });
       } catch (error) {
         await safeReply(ctx, `<b>Failed:</b> ${escapeHTML(friendlyErrorText(error))}`, {
@@ -1085,8 +1085,8 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
     const info = session.getInfo();
     const contextLabel = isTopicContext(contextKey) ? "Topic session" : "Chat session";
 
-    const plainLines = [`${contextLabel}:`, renderSessionInfoPlain(info)];
-    const htmlLines = [`<b>${escapeHTML(contextLabel)}:</b>`, renderSessionInfoHTML(info)];
+    const plainLines = [`${contextLabel}:`, renderSessionInfoPlain(info, config)];
+    const htmlLines = [`<b>${escapeHTML(contextLabel)}:</b>`, renderSessionInfoHTML(info, config)];
 
     await safeReply(ctx, htmlLines.join("\n"), { fallbackText: plainLines.join("\n") });
   });
@@ -1284,8 +1284,8 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
     try {
       const info = await session.switchSession(threadId);
       updateSessionMetadata(contextKey, session);
-      const html = `<b>Attached to thread.</b>\n\n${renderSessionInfoHTML(info)}`;
-      const plain = `Attached to thread.\n\n${renderSessionInfoPlain(info)}`;
+      const html = `<b>Attached to thread.</b>\n\n${renderSessionInfoHTML(info, config)}`;
+      const plain = `Attached to thread.\n\n${renderSessionInfoPlain(info, config)}`;
       await safeReply(ctx, html, { fallbackText: plain });
     } catch (error) {
       await safeReply(ctx, `<b>Failed:</b> ${escapeHTML(friendlyErrorText(error))}`, {
@@ -1324,8 +1324,8 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
       try {
         const info = await session.switchSession(threadId);
         updateSessionMetadata(contextKey, session);
-        const html = `<b>Switched thread.</b>\n\n${renderSessionInfoHTML(info)}`;
-        const plain = `Switched thread.\n\n${renderSessionInfoPlain(info)}`;
+        const html = `<b>Switched thread.</b>\n\n${renderSessionInfoHTML(info, config)}`;
+        const plain = `Switched thread.\n\n${renderSessionInfoPlain(info, config)}`;
         await safeReply(ctx, html, { fallbackText: plain });
       } catch (error) {
         await safeReply(ctx, `<b>Failed:</b> ${escapeHTML(friendlyErrorText(error))}`, {
@@ -1529,8 +1529,8 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
     try {
       const info = await session.switchSession(threadId);
       updateSessionMetadata(contextKey, session);
-      const plainText = `Switched session.\n\n${renderSessionInfoPlain(info)}`;
-      const html = `<b>Switched session.</b>\n\n${renderSessionInfoHTML(info)}`;
+      const plainText = `Switched session.\n\n${renderSessionInfoPlain(info, config)}`;
+      const html = `<b>Switched session.</b>\n\n${renderSessionInfoHTML(info, config)}`;
 
       if (messageId) {
         await safeEditMessage(bot, chatId, messageId, html, { fallbackText: plainText });
@@ -1587,8 +1587,8 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
       const info = await session.newThread(workspace);
       updateSessionMetadata(contextKey, session);
       const label = isTopicContext(contextKey) ? "New thread created for this topic." : "New thread created.";
-      const plainText = `${label}\n\n${renderSessionInfoPlain(info)}`;
-      const html = `<b>${escapeHTML(label)}</b>\n\n${renderSessionInfoHTML(info)}`;
+      const plainText = `${label}\n\n${renderSessionInfoPlain(info, config)}`;
+      const html = `<b>${escapeHTML(label)}</b>\n\n${renderSessionInfoHTML(info, config)}`;
 
       if (messageId) {
         await safeEditMessage(bot, chatId, messageId, html, { fallbackText: plainText });
@@ -2153,13 +2153,17 @@ export async function registerCommands(bot: Bot<Context>): Promise<void> {
   ]);
 }
 
-function renderSessionInfoPlain(info: CodexSessionInfo): string {
+function renderSessionInfoPlain(info: CodexSessionInfo, config: Pick<TeleCodexConfig, "showLaunchBehavior">): string {
   return [
     `Thread ID: ${info.threadId ?? "(not started yet)"}`,
     `Workspace: ${info.workspace}`,
-    `Launch profile: ${info.launchProfileLabel} (${info.launchProfileBehavior})${info.unsafeLaunch ? " [unsafe]" : ""}`,
+    config.showLaunchBehavior
+      ? `Launch profile: ${info.launchProfileLabel} (${info.launchProfileBehavior})${info.unsafeLaunch ? " [unsafe]" : ""}`
+      : `Launch profile: ${info.launchProfileLabel}`,
     info.nextLaunchProfileId
-      ? `Next launch profile: ${info.nextLaunchProfileLabel} (${info.nextLaunchProfileBehavior})${info.nextUnsafeLaunch ? " [unsafe]" : ""}`
+      ? config.showLaunchBehavior
+        ? `Next launch profile: ${info.nextLaunchProfileLabel} (${info.nextLaunchProfileBehavior})${info.nextUnsafeLaunch ? " [unsafe]" : ""}`
+        : `Next launch profile: ${info.nextLaunchProfileLabel}`
       : undefined,
     info.model ? `Model: ${info.model}` : undefined,
     info.reasoningEffort ? `Reasoning effort: ${info.reasoningEffort}` : undefined,
@@ -2169,14 +2173,18 @@ function renderSessionInfoPlain(info: CodexSessionInfo): string {
     .join("\n");
 }
 
-function renderSessionInfoHTML(info: CodexSessionInfo): string {
+function renderSessionInfoHTML(info: CodexSessionInfo, config: Pick<TeleCodexConfig, "showLaunchBehavior">): string {
   return [
     `<b>Thread ID:</b> <code>${escapeHTML(info.threadId ?? "(not started yet)")}</code>`,
     `<b>Workspace:</b> <code>${escapeHTML(info.workspace)}</code>`,
     `<b>Launch profile:</b> <code>${escapeHTML(info.launchProfileLabel)}</code>`,
-    `<b>Launch behavior:</b> <code>${escapeHTML(info.launchProfileBehavior)}</code>${info.unsafeLaunch ? " ⚠️" : ""}`,
+    config.showLaunchBehavior
+      ? `<b>Launch behavior:</b> <code>${escapeHTML(info.launchProfileBehavior)}</code>${info.unsafeLaunch ? " ⚠️" : ""}`
+      : undefined,
     info.nextLaunchProfileId
-      ? `<b>Next launch profile:</b> <code>${escapeHTML(info.nextLaunchProfileLabel ?? "")}</code> <i>(${escapeHTML(info.nextLaunchProfileBehavior ?? "")})</i>${info.nextUnsafeLaunch ? " ⚠️" : ""}`
+      ? config.showLaunchBehavior
+        ? `<b>Next launch profile:</b> <code>${escapeHTML(info.nextLaunchProfileLabel ?? "")}</code> <i>(${escapeHTML(info.nextLaunchProfileBehavior ?? "")})</i>${info.nextUnsafeLaunch ? " ⚠️" : ""}`
+        : `<b>Next launch profile:</b> <code>${escapeHTML(info.nextLaunchProfileLabel ?? "")}</code>`
       : undefined,
     info.model ? `<b>Model:</b> <code>${escapeHTML(info.model)}</code>` : undefined,
     info.reasoningEffort ? `<b>Reasoning effort:</b> <code>${escapeHTML(info.reasoningEffort)}</code>` : undefined,
@@ -2186,11 +2194,17 @@ function renderSessionInfoHTML(info: CodexSessionInfo): string {
     .join("\n");
 }
 
-function renderLaunchSummaryPlain(info: CodexSessionInfo): string {
+function renderLaunchSummaryPlain(info: CodexSessionInfo, config: Pick<TeleCodexConfig, "showLaunchBehavior">): string {
+  if (!config.showLaunchBehavior) {
+    return `Launch: ${info.launchProfileLabel}`;
+  }
   return `Launch: ${info.launchProfileLabel} (${info.launchProfileBehavior})${info.unsafeLaunch ? " [unsafe]" : ""}`;
 }
 
-function renderLaunchSummaryHTML(info: CodexSessionInfo): string {
+function renderLaunchSummaryHTML(info: CodexSessionInfo, config: Pick<TeleCodexConfig, "showLaunchBehavior">): string {
+  if (!config.showLaunchBehavior) {
+    return `<b>Launch:</b> <code>${escapeHTML(info.launchProfileLabel)}</code>`;
+  }
   const suffix = info.unsafeLaunch ? " ⚠️" : "";
   return `<b>Launch:</b> <code>${escapeHTML(info.launchProfileLabel)}</code> <i>(${escapeHTML(info.launchProfileBehavior)})</i>${suffix}`;
 }

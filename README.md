@@ -59,6 +59,7 @@ TeleCodex is a Telegram bridge for the OpenAI Codex CLI SDK. It keeps a Codex th
    | `CODEX_DEFAULT_LAUNCH_PROFILE` | — | Default launch profile id (defaults to `default`) |
    | `ENABLE_UNSAFE_LAUNCH_PROFILES` | — | Set to `true` to allow extra `danger-full-access` launch profiles |
    | `TOOL_VERBOSITY` | — | `all`, `summary` *(default)*, `errors-only`, `none` |
+   | `SHOW_LAUNCH_BEHAVIOR` | — | Show sandbox/approval details in session status messages (`true` by default) |
    | `SHOW_TURN_TOKEN_USAGE` | — | Show the per-turn `in/cached/out` footer in final replies (`false` by default) |
    | `MAX_FILE_SIZE` | — | Max upload size in bytes (default `20971520` = 20 MB) |
    | `ENABLE_TELEGRAM_LOGIN` | — | Allow `/login` and `/logout` from Telegram (`true` by default) |
@@ -108,6 +109,8 @@ TeleCodex is a Telegram bridge for the OpenAI Codex CLI SDK. It keeps a Codex th
 | `none` | Silent |
 
 Per-turn token usage is hidden by default. Set `SHOW_TURN_TOKEN_USAGE=true` if you want the `in / cached / out` footer appended to final replies.
+
+Launch behavior is shown by default in session status messages. Set `SHOW_LAUNCH_BEHAVIOR=false` to hide sandbox/approval details such as `danger-full-access / never`.
 
 ### Launch profiles
 
