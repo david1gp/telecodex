@@ -232,7 +232,7 @@ export const listModels = (): CodexModelRecord[] => defaultState.listModels()
 
 export function reloadModelsFromCLI(): CodexModelRecord[] {
   try {
-    const result = spawnSync("codex", ["debug", "models", "--json"], {
+    const result = spawnSync("codex", ["debug", "models"], {
       timeout: 15000,
       encoding: "utf8",
     })

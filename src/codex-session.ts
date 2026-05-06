@@ -27,7 +27,11 @@ export interface CodexSessionCallbacks {
   onToolEnd: (toolCallId: string, isError: boolean) => void
   onAgentEnd: () => void
   onTodoUpdate?: (items: Array<{ text: string; completed: boolean }>) => void
-  onTurnComplete?: (usage: { inputTokens: number; cachedInputTokens: number; outputTokens: number }) => void
+  onTurnComplete?: (usage: {
+    inputTokens: { last: number; total: number }
+    cachedInputTokens: { last: number; total: number }
+    outputTokens: { last: number; total: number }
+  }) => void
 }
 
 export interface CodexSessionInfo {
@@ -279,9 +283,9 @@ export class CodexSessionService {
             tokens.cached += u.cached_input_tokens
             tokens.output += u.output_tokens
             callbacks.onTurnComplete?.({
-              inputTokens: u.input_tokens,
-              cachedInputTokens: u.cached_input_tokens,
-              outputTokens: u.output_tokens,
+              inputTokens: { last: u.input_tokens, total: tokens.input },
+              cachedInputTokens: { last: u.cached_input_tokens, total: tokens.cached },
+              outputTokens: { last: u.output_tokens, total: tokens.output },
             })
             callbacks.onAgentEnd()
             break
