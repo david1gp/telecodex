@@ -13,7 +13,6 @@ import type { TeleCodexConfig } from "./config.js";
 import {
   getThread,
   listModels,
-  reloadModelsFromCLI,
   listThreads,
   listWorkspaces,
   type CodexModelRecord,
@@ -358,10 +357,6 @@ export class CodexSessionService {
 
   listModels(): CodexModelRecord[] {
     return listModels();
-  }
-
-  reloadModels(): CodexModelRecord[] {
-    return reloadModelsFromCLI();
   }
 
   setModel(slug: string): string {

@@ -1433,38 +1433,6 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
     );
   });
 
-  bot.command("models_reload", async (ctx) => {
-    const contextSession = await getContextSession(ctx, { deferThreadStart: true });
-    if (!contextSession) {
-      return;
-    }
-
-    const { contextKey, session } = contextSession;
-    if (isBusy(contextKey)) {
-      await safeReply(ctx, escapeHTML("Cannot reload models while a prompt is running."), {
-        fallbackText: "Cannot reload models while a prompt is running.",
-      });
-      return;
-    }
-
-    await safeReply(ctx, escapeHTML("Refreshing model list from Codex CLI..."), {
-      fallbackText: "Refreshing model list from Codex CLI...",
-    });
-
-    const models = session.reloadModels();
-    if (models.length === 0) {
-      await safeReply(ctx, escapeHTML("No models found."), {
-        fallbackText: "No models found.",
-      });
-      return;
-    }
-
-    const html = [`<b>Models refreshed:</b> (${models.length} available)`, ""].join("\n");
-    const plain = [`Models refreshed: (${models.length} available)`, ""].join("\n");
-
-    await safeReply(ctx, html, { fallbackText: plain });
-  });
-
   bot.command("effort", async (ctx) => {
     const chatId = ctx.chat?.id;
     if (!chatId) {
@@ -2155,125 +2123,6 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
     }
   });
 
-  bot.command(["image", "draw"], async (ctx) => {
-    const chatId = ctx.chat?.id;
-    if (!chatId) {
-      return;
-    }
-
-    const contextSession = await getContextSession(ctx);
-    if (!contextSession) {
-      return;
-    }
-
-    const { contextKey, session } = contextSession;
-    const messageThreadId = parseContextKey(contextKey).messageThreadId;
-
-    if (isBusy(contextKey)) {
-      await sendBusyReply(ctx);
-      return;
-    }
-
-    const rawText = ctx.message?.text ?? "";
-    const prompt = rawText.replace(/^\/(?:image|draw)(?:@\w+)?\s*/i, "").trim();
-
-    if (!prompt) {
-      await safeReply(
-        ctx,
-        [
-          "<b>🖼️ Image Generation</b>",
-          "",
-          "Usage: <code>/image A serene mountain landscape at sunset</code>",
-          "or <code>/draw a cute robot playing guitar</code>",
-          "",
-          "Codex generates images using gpt-image-2.",
-        ].join("\n"),
-        {
-          fallbackText: [
-            "🖼️ Image Generation",
-            "",
-            "Usage: /image A serene mountain landscape at sunset",
-            "or /draw a cute robot playing guitar",
-            "",
-            "Codex generates images using gpt-image-2.",
-          ].join("\n"),
-        },
-      );
-      return;
-    }
-
-    if (!(await ensureActiveThread(ctx, contextKey, session))) {
-      return;
-    }
-
-    const outDir = outboxPath(session.getCurrentWorkspace(), "imagegen");
-    await ensureOutDir(outDir);
-
-    await ctx.api.sendChatAction(chatId, "typing", {
-      ...(messageThreadId ? { message_thread_id: messageThreadId } : {}),
-    }).catch(() => {});
-
-    lastPromptInput.set(contextKey, prompt);
-
-    const abortKeyboard = new InlineKeyboard().text("⏹ Abort", `codex_abort:${contextKey}`);
-    let responseMessageId: number | undefined;
-
-    const sendInitialMessage = async () => {
-      responseMessageId = (await sendTextMessage(
-        bot.api,
-        chatId,
-        "🎨 Generating image...",
-        { messageThreadId, replyMarkup: abortKeyboard },
-      )).message_id;
-    };
-
-    try {
-      await sendInitialMessage();
-    } catch (error) {
-      console.error("Failed to send initial image message:", error);
-    }
-
-    const imagePrompt = `Use the $imagegen skill to generate an image and save it to this path: ${outboxPath(session.getCurrentWorkspace(), "imagegen")}/image.png\n\n${prompt}`;
-
-    await setReaction(ctx, "👀");
-    try {
-      const callbacks: CodexSessionCallbacks = {
-        onTextDelta: (delta: string) => {
-          if (responseMessageId) {
-            void safeEditMessage(bot, chatId, responseMessageId, `🎨 Generating...\n\n${delta}`, {
-              fallbackText: `Generating...\n\n${delta}`,
-              replyMarkup: abortKeyboard,
-            }).catch(() => {});
-          }
-        },
-        onToolStart: () => {},
-        onToolUpdate: () => {},
-        onToolEnd: () => {},
-        onAgentEnd: async () => {
-          if (responseMessageId) {
-            await safeEditMessage(bot, chatId, responseMessageId, "✅ Image generation complete!", {
-              fallbackText: "Image generation complete!",
-            }).catch(() => {});
-          }
-          await deliverArtifacts(ctx, chatId, outDir, messageThreadId);
-        },
-      };
-
-      await session.prompt(imagePrompt, callbacks);
-      updateSessionMetadata(contextKey, session);
-      await setReaction(ctx, "👍");
-    } catch (error) {
-      await clearReaction(ctx);
-      const errHtml = `<b>Failed:</b> ${escapeHTML(friendlyErrorText(error))}`;
-      const errPlain = `Failed: ${friendlyErrorText(error)}`;
-      if (responseMessageId) {
-        await safeEditMessage(bot, chatId, responseMessageId, errHtml, { fallbackText: errPlain }).catch(() => {});
-      } else {
-        await safeReply(ctx, errHtml, { fallbackText: errPlain });
-      }
-    }
-  });
-
   bot.catch((error) => {
     const message = error.error instanceof Error ? error.error.message : String(error.error);
     console.error("Telegram bot error:", message);
@@ -2301,8 +2150,6 @@ export async function registerCommands(bot: Bot<Context>): Promise<void> {
     { command: "handback", description: "Hand thread to Codex CLI" },
     { command: "attach", description: "Bind a Codex thread to this topic" },
     { command: "switch", description: "Switch to a thread by ID" },
-    { command: "image", description: "Generate an image" },
-    { command: "models_reload", description: "Reload model list from CLI" },
   ]);
 }
 
