@@ -285,7 +285,13 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
     let planMessageId: number | undefined
     let lastRenderedPlan = ""
     let planMessageSending = false
-    let lastTurnUsage: { inputTokens: number; cachedInputTokens: number; outputTokens: number } | undefined
+    let lastTurnUsage:
+      | {
+          inputTokens: { last: number; total: number }
+          cachedInputTokens: { last: number; total: number }
+          outputTokens: { last: number; total: number }
+        }
+      | undefined
 
     const typingInterval = setInterval(() => {
       void bot.api
@@ -2312,11 +2318,15 @@ function renderTodoList(items: Array<{ text: string; completed: boolean }>): str
 }
 
 export function formatTurnUsageLine(usage: {
-  inputTokens: number
-  cachedInputTokens: number
-  outputTokens: number
+  inputTokens: { last: number; total: number }
+  cachedInputTokens: { last: number; total: number }
+  outputTokens: { last: number; total: number }
 }): string {
-  return `🪙 in: ${usage.inputTokens} · cached: ${usage.cachedInputTokens} · out: ${usage.outputTokens}`
+  return `🪙 in: ${formatTurnUsageValue(usage.inputTokens)} · cached: ${formatTurnUsageValue(usage.cachedInputTokens)} · out: ${formatTurnUsageValue(usage.outputTokens)}`
+}
+
+function formatTurnUsageValue(value: { last: number; total: number }): string {
+  return `${value.last}/${value.total}`
 }
 
 export function summarizeToolName(toolName: string): string {

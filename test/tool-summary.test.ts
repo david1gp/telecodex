@@ -24,10 +24,10 @@ describe("tool summary formatting", () => {
   it("keeps the turn usage line format stable when enabled", () => {
     expect(
       formatTurnUsageLine({
-        inputTokens: 12,
-        cachedInputTokens: 3,
-        outputTokens: 9,
+        inputTokens: { last: 12, total: 40 },
+        cachedInputTokens: { last: 3, total: 10 },
+        outputTokens: { last: 9, total: 30 },
       }),
-    ).toBe("🪙 in: 12 · cached: 3 · out: 9")
+    ).toBe("🪙 in: 12/40 · cached: 3/10 · out: 9/30")
   })
 })

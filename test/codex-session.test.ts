@@ -602,15 +602,15 @@ describe("CodexSessionService", () => {
 
     expect(firstCallbacks.onAgentEnd).toHaveBeenCalledTimes(1)
     expect(firstCallbacks.onTurnComplete).toHaveBeenCalledWith({
-      inputTokens: 11,
-      cachedInputTokens: 3,
-      outputTokens: 7,
+      inputTokens: { last: 11, total: 11 },
+      cachedInputTokens: { last: 3, total: 3 },
+      outputTokens: { last: 7, total: 7 },
     })
     expect(secondCallbacks.onAgentEnd).toHaveBeenCalledTimes(1)
     expect(secondCallbacks.onTurnComplete).toHaveBeenCalledWith({
-      inputTokens: 5,
-      cachedInputTokens: 2,
-      outputTokens: 13,
+      inputTokens: { last: 5, total: 16 },
+      cachedInputTokens: { last: 2, total: 5 },
+      outputTokens: { last: 13, total: 20 },
     })
     expect(service.getInfo().sessionTokens).toEqual({
       input: 16,
