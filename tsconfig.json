@@ -1,16 +1,64 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "Node16",
-    "moduleResolution": "Node16",
-    "outDir": "dist",
-    "rootDir": "src",
-    "strict": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
+    "target": "esnext",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "allowImportingTsExtensions": false,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    //
+    // dom
+    //
+    "lib": [
+      "esnext"
+    ],
+    "types": ["bun"],
+    //
+    // performance
+    //
+    "isolatedModules": true,
     "skipLibCheck": true,
+    "incremental": true,
+    "tsBuildInfoFile": "./build/tsconfig.tsbuildinfo",
+    //
+    // my configs
+    //
+    "allowJs": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "useDefineForClassFields": true,
+    "noUncheckedSideEffectImports": true,
+    //
+    // type imports - https://www.typescriptlang.org/tsconfig#verbatimModuleSyntax
+    //
     "verbatimModuleSyntax": true,
-    "types": ["node"]
+    //
+    // https://devblogs.microsoft.com/typescript/announcing-typescript-5-8/#the---erasablesyntaxonly-option
+    //
+    "erasableSyntaxOnly": true,
+    //
+    // code quality settings
+    //
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*.ts"]
+  "include": [
+    "src",
+    "test"
+  ],
+  "exclude": [
+    ".github",
+    "build",
+    "dist",
+    "out",
+    "data",
+    "docs",
+    "node_modules",
+  ],
 }
