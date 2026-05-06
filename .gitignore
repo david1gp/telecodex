@@ -28,3 +28,8 @@ agent-tools/
 
 # Test coverage
 coverage/
+
+# Package managers
+bun.lock
+package-lock.json
+
