@@ -26,17 +26,17 @@
   "dependencies": {
     "@grammyjs/auto-retry": "^2.0.2",
     "@openai/codex-sdk": "^0.128.0",
-    "grammy": "^1.41.1"
+    "grammy": "^1.42.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.0",
-    "@types/node": "^25.5.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.6.0",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3",
-    "vitest": "^3.2.4"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5"
   },
   "optionalDependencies": {
-    "better-sqlite3": "^11.0.0",
+    "better-sqlite3": "^12.9.0",
     "parakeet-coreml": "^2.2.0"
   }
 }
