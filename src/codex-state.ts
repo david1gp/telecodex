@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 export interface CodexThreadRecord {
@@ -138,6 +139,36 @@ export function listModels(): CodexModelRecord[] {
 
   try {
     const payload = JSON.parse(readFileSync(modelsPath, "utf8")) as {
+      models?: Array<{ slug?: unknown; display_name?: unknown; visibility?: unknown }>;
+    };
+
+    const models = (payload.models ?? [])
+      .filter((model) => model && typeof model === "object")
+      .filter((model) => model.visibility !== "hidden")
+      .map((model) => ({
+        slug: typeof model.slug === "string" ? model.slug : "",
+        displayName: typeof model.display_name === "string" ? model.display_name : "",
+      }))
+      .filter((model) => model.slug && model.displayName);
+
+    return models.length > 0 ? models : FALLBACK_MODELS;
+  } catch {
+    return FALLBACK_MODELS;
+  }
+}
+
+export function reloadModelsFromCLI(): CodexModelRecord[] {
+  try {
+    const result = spawnSync("codex", ["debug", "models", "--json"], {
+      timeout: 15000,
+      encoding: "utf8",
+    });
+
+    if (result.status !== 0 || !result.stdout) {
+      return FALLBACK_MODELS;
+    }
+
+    const payload = JSON.parse(result.stdout) as {
       models?: Array<{ slug?: unknown; display_name?: unknown; visibility?: unknown }>;
     };
 

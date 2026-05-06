@@ -1,4 +1,4 @@
-import { escapeHTML } from "./format.js";
+import { escapeHTML } from "./format.js"
 
 export interface DualText {
   html: string;
@@ -27,7 +27,14 @@ export function renderHelpMessage(): DualText {
       commands: [
         ["/launch_profiles", "Select launch profile"],
         ["/model", "View & change model"],
+        ["/models_reload", "Reload models from CLI"],
         ["/effort", "Set reasoning effort"],
+      ],
+    },
+    {
+      title: "🎨 Image",
+      commands: [
+        ["/image", "Generate an image (alias: /draw)"],
       ],
     },
     {
