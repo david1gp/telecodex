@@ -624,6 +624,55 @@ describe("CodexSessionService", () => {
     });
   });
 
+  it("resets displayed token totals for a newly created thread", async () => {
+    const service = await CodexSessionService.create(createConfig());
+    const thread = mockState.createdThreads[0];
+    const callbacks = createCallbacks();
+
+    thread.runStreamed.mockResolvedValueOnce({
+      events: streamEvents([{ type: "turn.completed", usage }]),
+    });
+
+    await service.prompt("first", callbacks);
+    expect(service.getInfo().sessionTokens).toEqual({
+      input: 1,
+      cached: 0,
+      output: 1,
+    });
+
+    const info = await service.newThread();
+
+    expect(info.sessionTokens).toBeUndefined();
+    expect(service.getInfo().sessionTokens).toBeUndefined();
+  });
+
+  it("keeps token totals scoped to the active thread id", async () => {
+    const service = await CodexSessionService.create(createConfig());
+    const firstThread = mockState.createdThreads[0];
+    const callbacks = createCallbacks();
+
+    firstThread.runStreamed.mockResolvedValueOnce({
+      events: streamEvents([{ type: "thread.started", thread_id: "thread-a" }, { type: "turn.completed", usage }]),
+    });
+
+    await service.prompt("first", callbacks);
+    expect(service.getInfo().sessionTokens).toEqual({
+      input: 1,
+      cached: 0,
+      output: 1,
+    });
+
+    const switchedInfo = await service.switchSession("thread-b");
+    expect(switchedInfo.sessionTokens).toBeUndefined();
+
+    const returnedInfo = await service.switchSession("thread-a");
+    expect(returnedInfo.sessionTokens).toEqual({
+      input: 1,
+      cached: 0,
+      output: 1,
+    });
+  });
+
   it("throws when the turn fails", async () => {
     const service = await CodexSessionService.create(createConfig());
     const thread = mockState.createdThreads[0];
@@ -931,11 +980,6 @@ describe("CodexSessionService", () => {
       sandboxMode: "workspace-write",
       approvalPolicy: "never",
       unsafeLaunch: false,
-      sessionTokens: {
-        input: 1,
-        cached: 0,
-        output: 1,
-      },
     });
   });
 

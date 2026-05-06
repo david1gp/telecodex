@@ -82,7 +82,9 @@ export class CodexSessionService {
   private currentReasoningEffort: ModelReasoningEffort | undefined;
   private currentLaunchProfile: CodexLaunchProfile;
   private activeThreadLaunchProfile: CodexLaunchProfile | null = null;
-  private sessionTokens = { input: 0, cached: 0, output: 0 };
+  private readonly threadTokens = new Map<string, { input: number; cached: number; output: number }>();
+  private activeTokenKey: string | null = null;
+  private nextLocalThreadTokenId = 1;
 
   private constructor(private readonly config: TeleCodexConfig) {
     this.currentWorkspace = config.workspace;
@@ -141,8 +143,9 @@ export class CodexSessionService {
       info.nextUnsafeLaunch = this.currentLaunchProfile.unsafe;
     }
 
-    if (this.sessionTokens.input > 0 || this.sessionTokens.cached > 0 || this.sessionTokens.output > 0) {
-      info.sessionTokens = { ...this.sessionTokens };
+    const sessionTokens = this.getActiveThreadTokens();
+    if (sessionTokens.input > 0 || sessionTokens.cached > 0 || sessionTokens.output > 0) {
+      info.sessionTokens = { ...sessionTokens };
     }
 
     return info;
@@ -264,9 +267,10 @@ export class CodexSessionService {
             // finalizeResponse() can read lastTurnUsage when building the
             // final message text.
             const u = event.usage;
-            this.sessionTokens.input += u.input_tokens;
-            this.sessionTokens.cached += u.cached_input_tokens;
-            this.sessionTokens.output += u.output_tokens;
+            const tokens = this.getActiveThreadTokens();
+            tokens.input += u.input_tokens;
+            tokens.cached += u.cached_input_tokens;
+            tokens.output += u.output_tokens;
             callbacks.onTurnComplete?.({
               inputTokens: u.input_tokens,
               cachedInputTokens: u.cached_input_tokens,
@@ -303,6 +307,8 @@ export class CodexSessionService {
     this.activeThreadLaunchProfile = this.currentLaunchProfile;
     this.currentWorkspace = effectiveWorkspace;
     this.currentThreadId = this.thread.id ?? null;
+    this.activeTokenKey = this.currentThreadId ?? `local:${this.nextLocalThreadTokenId++}`;
+    this.threadTokens.set(this.activeTokenKey, { input: 0, cached: 0, output: 0 });
     if (model) {
       this.currentModel = model;
     }
@@ -318,6 +324,8 @@ export class CodexSessionService {
     );
     this.activeThreadLaunchProfile = this.currentLaunchProfile;
     this.currentThreadId = threadId;
+    this.activeTokenKey = threadId;
+    this.ensureThreadTokens(threadId);
     return this.getInfo();
   }
 
@@ -332,6 +340,8 @@ export class CodexSessionService {
     this.activeThreadLaunchProfile = this.currentLaunchProfile;
     this.currentWorkspace = workspace;
     this.currentThreadId = threadId;
+    this.activeTokenKey = threadId;
+    this.ensureThreadTokens(threadId);
     if (model) {
       this.currentModel = model;
     }
@@ -380,6 +390,7 @@ export class CodexSessionService {
     this.thread = null;
     this.currentThreadId = null;
     this.activeThreadLaunchProfile = null;
+    this.activeTokenKey = null;
     return info;
   }
 
@@ -389,6 +400,7 @@ export class CodexSessionService {
     this.thread = null;
     this.currentThreadId = null;
     this.activeThreadLaunchProfile = null;
+    this.activeTokenKey = null;
   }
 
   private buildSdkInput(input: CodexPromptInput): Input {
@@ -457,7 +469,53 @@ export class CodexSessionService {
 
   private handleThreadEvent(event: ThreadEvent): void {
     if (event.type === "thread.started") {
+      this.transferActiveTokenKey(event.thread_id);
       this.currentThreadId = event.thread_id;
+    }
+  }
+
+  private getActiveThreadTokens(): { input: number; cached: number; output: number } {
+    if (!this.activeTokenKey) {
+      return { input: 0, cached: 0, output: 0 };
+    }
+
+    return this.ensureThreadTokens(this.activeTokenKey);
+  }
+
+  private ensureThreadTokens(key: string): { input: number; cached: number; output: number } {
+    let tokens = this.threadTokens.get(key);
+    if (!tokens) {
+      tokens = { input: 0, cached: 0, output: 0 };
+      this.threadTokens.set(key, tokens);
+    }
+    return tokens;
+  }
+
+  private transferActiveTokenKey(threadId: string): void {
+    if (this.activeTokenKey === threadId) {
+      return;
+    }
+
+    const previousKey = this.activeTokenKey;
+    const previousTokens = previousKey ? this.threadTokens.get(previousKey) : undefined;
+    this.activeTokenKey = threadId;
+
+    if (!previousTokens) {
+      this.ensureThreadTokens(threadId);
+      return;
+    }
+
+    const existingTokens = this.threadTokens.get(threadId);
+    if (existingTokens) {
+      existingTokens.input += previousTokens.input;
+      existingTokens.cached += previousTokens.cached;
+      existingTokens.output += previousTokens.output;
+    } else {
+      this.threadTokens.set(threadId, previousTokens);
+    }
+
+    if (previousKey) {
+      this.threadTokens.delete(previousKey);
     }
   }
 
