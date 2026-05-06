@@ -28,6 +28,16 @@ describe("tool summary formatting", () => {
         cachedInputTokens: { last: 3, total: 10 },
         outputTokens: { last: 9, total: 30 },
       }),
-    ).toBe("🪙 in: 12/40 · cached: 3/10 · out: 9/30")
+    ).toBe("🪙 in: `12`/40 · cached: `3`/10 · out: `9`/30")
+  })
+
+  it("collapses turn usage totals when they match the last message", () => {
+    expect(
+      formatTurnUsageLine({
+        inputTokens: { last: 12, total: 12 },
+        cachedInputTokens: { last: 3, total: 3 },
+        outputTokens: { last: 9, total: 30 },
+      }),
+    ).toBe("🪙 in: `12` · cached: `3` · out: `9`/30")
   })
 })

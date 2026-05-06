@@ -2326,7 +2326,8 @@ export function formatTurnUsageLine(usage: {
 }
 
 function formatTurnUsageValue(value: { last: number; total: number }): string {
-  return `${value.last}/${value.total}`
+  const last = `\`${value.last}\``
+  return value.last === value.total ? last : `${last}/${value.total}`
 }
 
 export function summarizeToolName(toolName: string): string {
