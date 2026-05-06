@@ -2322,12 +2322,24 @@ export function formatTurnUsageLine(usage: {
   cachedInputTokens: { last: number; total: number }
   outputTokens: { last: number; total: number }
 }): string {
-  return `🪙 in: ${formatTurnUsageValue(usage.inputTokens)} · cached: ${formatTurnUsageValue(usage.cachedInputTokens)} · out: ${formatTurnUsageValue(usage.outputTokens)}`
+  const uncachedInputTokens = {
+    last: Math.max(0, usage.inputTokens.last - usage.cachedInputTokens.last),
+    total: Math.max(0, usage.inputTokens.total - usage.cachedInputTokens.total),
+  }
+  return `🪙 in: ${formatTurnUsageValue(uncachedInputTokens)} · cached: ${formatTurnUsageValue(usage.cachedInputTokens)} · out: ${formatTurnUsageValue(usage.outputTokens)}`
 }
 
 function formatTurnUsageValue(value: { last: number; total: number }): string {
-  const last = `\`${value.last}\``
-  return value.last === value.total ? last : `${last}/${value.total}`
+  const last = `\`${formatTokenCount(value.last)}\``
+  const total = `\`${formatTokenCount(value.total)}\``
+  return value.last === value.total ? last : `${last}/${total}`
+}
+
+function formatTokenCount(value: number): string {
+  return new Intl.NumberFormat("en", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(value)
 }
 
 export function summarizeToolName(toolName: string): string {
