@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test"
 
 import { formatSessionLabel, renderHelpMessage, renderWelcomeFirstTime, renderWelcomeReturning } from "../src/bot-ui.js"
 

@@ -1,14 +1,15 @@
-FROM node:22-alpine
+FROM oven/bun:alpine
 
 RUN apk add --no-cache git bash
 
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+COPY package.json package-lock.json* bun.lock  ./
+RUN bun install
 
 COPY . .
-RUN npm run build
+RUN bun install
+RUN bun run build
 
 RUN adduser -D -u 1001 telecodex \
   && mkdir -p /workspace /home/telecodex/.codex \
@@ -16,4 +17,4 @@ RUN adduser -D -u 1001 telecodex \
 
 USER telecodex
 
-CMD ["node", "dist/index.js"]
+CMD ["bun", "dist/index.js"]

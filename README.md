@@ -68,7 +68,7 @@ TeleCodex is a Telegram bridge for the OpenAI Codex CLI SDK. It keeps a Codex th
 
 4. Start the bot:
    ```bash
-   npm run dev
+   bun run dev
    ```
 
 ## Telegram Commands
@@ -213,12 +213,11 @@ TeleCodex/
 │   ├── voice.ts           — voice transcription (parakeet / Whisper)
 │   ├── config.ts          — environment loading and validation
 │   └── format.ts          — Markdown → Telegram HTML conversion
-├── test/                  — 15 test files, 180+ tests (vitest)
+├── test/                  — Bun test suite
 ├── .env.example
 ├── Dockerfile
 ├── docker-compose.yml
-├── tsconfig.json
-└── vitest.config.ts
+└── tsconfig.json
 ```
 
 ## Docker
@@ -236,9 +235,9 @@ The compose file:
 ## Development
 
 ```bash
-npm run dev      # run with tsx (no build step)
-npm run build    # compile TypeScript
-npm test         # run vitest
+bun run dev      # run with tsx (no build step)
+bun run build    # compile TypeScript
+bun test         # run tests
 ```
 
 ## Release Automation

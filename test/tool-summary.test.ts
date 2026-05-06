@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test"
 import { formatToolSummaryLine, formatTurnUsageLine, summarizeToolName } from "../src/bot.js"
 
 describe("tool summary formatting", () => {

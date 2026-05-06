@@ -16,6 +16,10 @@ export interface ContextMetadata {
   updatedAt: number
 }
 
+export interface SessionRegistryDependencies {
+  createSession?: typeof CodexSessionService.create
+}
+
 export class SessionRegistry {
   private readonly sessions = new Map<TelegramContextKey, CodexSessionService>()
   private readonly metadata = new Map<TelegramContextKey, ContextMetadata>()
@@ -23,9 +27,13 @@ export class SessionRegistry {
   private onRemoveCallback?: (contextKey: TelegramContextKey) => void
 
   private readonly config: TeleCodexConfig
+  private readonly dependencies: Required<SessionRegistryDependencies>
 
-  constructor(config: TeleCodexConfig) {
+  constructor(config: TeleCodexConfig, dependencies: SessionRegistryDependencies = {}) {
     this.config = config
+    this.dependencies = {
+      createSession: dependencies.createSession ?? CodexSessionService.create,
+    }
     this.persistPath = path.join(config.workspace, ".telecodex", "contexts.json")
     this.loadPersistedMetadata()
   }
@@ -41,7 +49,7 @@ export class SessionRegistry {
 
     const meta = this.metadata.get(contextKey)
     const launchProfileId = resolveLaunchProfileId(this.config, meta)
-    session = await CodexSessionService.create(this.config, {
+    session = await this.dependencies.createSession(this.config, {
       workspace: meta?.workspace,
       model: meta?.model,
       reasoningEffort: meta?.reasoningEffort,

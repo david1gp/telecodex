@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test"
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -25,6 +26,7 @@ describe("loadConfig", () => {
     delete process.env.TOOL_VERBOSITY
     delete process.env.SHOW_LAUNCH_BEHAVIOR
     delete process.env.SHOW_TURN_TOKEN_USAGE
+    delete process.env.SHOW_LAUNCH_PROFILE
     delete process.env.MAX_FILE_SIZE
     delete process.env.ENABLE_TELEGRAM_LOGIN
     delete process.env.ENABLE_TELEGRAM_REACTIONS

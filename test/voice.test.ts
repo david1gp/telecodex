@@ -1,7 +1,7 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test"
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import {
   _resetImportHook,
@@ -10,6 +10,16 @@ import {
   getAvailableBackends,
   transcribeAudio,
 } from "../src/voice.js"
+
+const originalFetch = globalThis.fetch
+
+function stubFetch(fetchMock: typeof fetch): void {
+  globalThis.fetch = fetchMock
+}
+
+function restoreFetch(): void {
+  globalThis.fetch = originalFetch
+}
 
 describe("voice transcription", () => {
   const originalOpenAIKey = process.env.OPENAI_API_KEY
@@ -22,12 +32,12 @@ describe("voice transcription", () => {
     writeFileSync(audioPath, Buffer.from("audio"))
     delete process.env.OPENAI_API_KEY
     _resetImportHook()
-    vi.unstubAllGlobals()
+    restoreFetch()
   })
 
   afterEach(() => {
     _resetImportHook()
-    vi.unstubAllGlobals()
+    restoreFetch()
     rmSync(tempDir, { recursive: true, force: true })
     if (originalOpenAIKey === undefined) {
       delete process.env.OPENAI_API_KEY
@@ -72,7 +82,7 @@ describe("voice transcription", () => {
       ok: true,
       json: async () => ({ text: "cloud transcript" }),
     })
-    vi.stubGlobal("fetch", fetchMock)
+    stubFetch(fetchMock as unknown as typeof fetch)
 
     const result = await transcribeAudio(audioPath)
 
@@ -110,14 +120,13 @@ describe("voice transcription", () => {
       throw error
     })
     process.env.OPENAI_API_KEY = "sk-test"
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockResolvedValue({
         ok: false,
         status: 500,
         statusText: "Internal Server Error",
         text: async () => "server exploded",
-      }),
+      }) as unknown as typeof fetch,
     )
 
     await expect(transcribeAudio(audioPath)).rejects.toThrow("OpenAI transcription failed (500): server exploded")
@@ -135,7 +144,7 @@ describe("voice transcription", () => {
     }))
     process.env.OPENAI_API_KEY = "sk-test"
     const fetchMock = vi.fn()
-    vi.stubGlobal("fetch", fetchMock)
+    stubFetch(fetchMock as unknown as typeof fetch)
 
     await expect(transcribeAudio(audioPath)).rejects.toThrow("GPU failure")
     expect(fetchMock).not.toHaveBeenCalled()
@@ -214,12 +223,11 @@ describe("voice transcription", () => {
       throw error
     })
     process.env.OPENAI_API_KEY = "sk-test"
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({ result: "ok" }),
-      }),
+      }) as unknown as typeof fetch,
     )
 
     await expect(transcribeAudio(audioPath)).rejects.toThrow(
@@ -234,7 +242,7 @@ describe("voice transcription", () => {
       throw error
     })
     process.env.OPENAI_API_KEY = "sk-test"
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network unreachable")))
+    stubFetch(vi.fn().mockRejectedValue(new Error("network unreachable")) as unknown as typeof fetch)
 
     await expect(transcribeAudio(audioPath)).rejects.toThrow("network unreachable")
   })
@@ -249,7 +257,7 @@ describe("voice transcription", () => {
     })
     process.env.OPENAI_API_KEY = "sk-test"
     const fetchMock = vi.fn()
-    vi.stubGlobal("fetch", fetchMock)
+    stubFetch(fetchMock as unknown as typeof fetch)
 
     await expect(transcribeAudio(audioPath)).rejects.toThrow("binding.node")
     expect(fetchMock).not.toHaveBeenCalled()

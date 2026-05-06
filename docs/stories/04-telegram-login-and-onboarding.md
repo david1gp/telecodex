@@ -65,8 +65,8 @@ Constraints:
   - startup when unauthenticated
   - `/login` happy path if supported by the local CLI
   - `/logout` or manual logout guidance
-- Run `npm test`.
-- Run `npm run build`.
+- Run `bun test`.
+- Run `bun run build`.
 
 ## Acceptance Criteria
 

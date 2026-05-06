@@ -1,5 +1,6 @@
+import { afterEach, describe, expect, it, vi } from "bun:test"
 import { EventEmitter } from "node:events"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { transcribeAudio } from "../src/voice.js"
 
 type FakeChildProcess = EventEmitter & {
   stdout: EventEmitter
@@ -16,16 +17,7 @@ function createSpawnMock(onSpawn: (child: FakeChildProcess) => void) {
   })
 }
 
-async function importVoiceWithSpawn(spawnMock: ReturnType<typeof createSpawnMock>) {
-  vi.resetModules()
-  vi.doMock("node:child_process", () => ({ spawn: spawnMock }))
-  return await import("../src/voice.js")
-}
-
 afterEach(() => {
-  vi.doUnmock("node:child_process")
-  vi.resetModules()
-  vi.unstubAllGlobals()
   delete process.env.OPENAI_API_KEY
 })
 
@@ -36,19 +28,19 @@ describe("voice decoding", () => {
       child.stdout.emit("data", Buffer.from(expectedSamples.buffer.slice(0)))
       child.emit("close", 0, null)
     })
-    const voice = await importVoiceWithSpawn(spawnMock)
-
-    voice._setImportHook(async () => ({
-      ParakeetAsrEngine: class {
-        async initialize(): Promise<void> {}
-        async transcribe(samples: Float32Array): Promise<{ text: string; durationMs: number }> {
-          expect(Array.from(samples)).toEqual(Array.from(expectedSamples))
-          return { text: "decoded locally", durationMs: 7 }
-        }
-      },
-    }))
-
-    const result = await voice.transcribeAudio("/tmp/sample.ogg")
+    const result = await transcribeAudio("/tmp/sample.ogg", {
+      spawn: spawnMock as any,
+      importModule: async () => ({
+        ParakeetAsrEngine: class {
+          async initialize(): Promise<void> {}
+          async transcribe(samples: Float32Array): Promise<{ text: string; durationMs: number }> {
+            expect(Array.from(samples)).toEqual(Array.from(expectedSamples))
+            return { text: "decoded locally", durationMs: 7 }
+          }
+        },
+      }),
+      engine: null,
+    })
 
     expect(spawnMock).toHaveBeenCalledWith(
       "ffmpeg",
@@ -67,18 +59,20 @@ describe("voice decoding", () => {
       child.stderr.emit("data", Buffer.from("bad input file"))
       child.emit("close", 1, null)
     })
-    const voice = await importVoiceWithSpawn(spawnMock)
-
-    voice._setImportHook(async () => ({
-      ParakeetAsrEngine: class {
-        async initialize(): Promise<void> {}
-        async transcribe(): Promise<{ text: string; durationMs: number }> {
-          return { text: "unused", durationMs: 7 }
-        }
-      },
-    }))
-
-    await expect(voice.transcribeAudio("/tmp/bad.ogg")).rejects.toThrow("ffmpeg failed to decode audio: bad input file")
+    await expect(
+      transcribeAudio("/tmp/bad.ogg", {
+        spawn: spawnMock as any,
+        importModule: async () => ({
+          ParakeetAsrEngine: class {
+            async initialize(): Promise<void> {}
+            async transcribe(): Promise<{ text: string; durationMs: number }> {
+              return { text: "unused", durationMs: 7 }
+            }
+          },
+        }),
+        engine: null,
+      }),
+    ).rejects.toThrow("ffmpeg failed to decode audio: bad input file")
   })
 
   it("rejects invalid ffmpeg PCM output", async () => {
@@ -86,18 +80,20 @@ describe("voice decoding", () => {
       child.stdout.emit("data", Buffer.from([1, 2, 3]))
       child.emit("close", 0, null)
     })
-    const voice = await importVoiceWithSpawn(spawnMock)
-
-    voice._setImportHook(async () => ({
-      ParakeetAsrEngine: class {
-        async initialize(): Promise<void> {}
-        async transcribe(): Promise<{ text: string; durationMs: number }> {
-          return { text: "unused", durationMs: 7 }
-        }
-      },
-    }))
-
-    await expect(voice.transcribeAudio("/tmp/bad-pcm.ogg")).rejects.toThrow(
+    await expect(
+      transcribeAudio("/tmp/bad-pcm.ogg", {
+        spawn: spawnMock as any,
+        importModule: async () => ({
+          ParakeetAsrEngine: class {
+            async initialize(): Promise<void> {}
+            async transcribe(): Promise<{ text: string; durationMs: number }> {
+              return { text: "unused", durationMs: 7 }
+            }
+          },
+        }),
+        engine: null,
+      }),
+    ).rejects.toThrow(
       "ffmpeg returned invalid float32 PCM output",
     )
   })
@@ -106,17 +102,19 @@ describe("voice decoding", () => {
     const spawnMock = createSpawnMock((child) => {
       child.emit("error", Object.assign(new Error("spawn ffmpeg ENOENT"), { code: "ENOENT" }))
     })
-    const voice = await importVoiceWithSpawn(spawnMock)
-
-    voice._setImportHook(async () => ({
-      ParakeetAsrEngine: class {
-        async initialize(): Promise<void> {}
-        async transcribe(): Promise<{ text: string; durationMs: number }> {
-          return { text: "unused", durationMs: 7 }
-        }
-      },
-    }))
-
-    await expect(voice.transcribeAudio("/tmp/missing.ogg")).rejects.toThrow("brew install ffmpeg")
+    await expect(
+      transcribeAudio("/tmp/missing.ogg", {
+        spawn: spawnMock as any,
+        importModule: async () => ({
+          ParakeetAsrEngine: class {
+            async initialize(): Promise<void> {}
+            async transcribe(): Promise<{ text: string; durationMs: number }> {
+              return { text: "unused", durationMs: 7 }
+            }
+          },
+        }),
+        engine: null,
+      }),
+    ).rejects.toThrow("brew install ffmpeg")
   })
 })

@@ -70,8 +70,8 @@ Do not copy competitor command surfaces wholesale. Reuse their session-scoping a
 - Add registry tests proving two contexts can hold different thread ids, workspaces, and models simultaneously.
 - Add bot-level tests proving one context being busy does not block another context.
 - Verify restart behavior by persisting metadata, reloading the registry, and confirming the last thread id is restored per context.
-- Run `npm test`.
-- Run `npm run build`.
+- Run `bun test`.
+- Run `bun run build`.
 
 ## Acceptance Criteria
 

@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process"
+import type { ChildProcessWithoutNullStreams } from "node:child_process"
 import { readFile } from "node:fs/promises"
 import { createRequire } from "node:module"
 import path from "node:path"
@@ -33,6 +34,16 @@ let _importModule: (specifier: string) => Promise<unknown> = async (specifier) =
 let _decodeAudio: (filePath: string) => Promise<Float32Array> = decodeAudioToSamples
 let _engine: ParakeetEngine | null = null
 
+export interface VoiceDependencies {
+  importModule?: (specifier: string) => Promise<unknown>
+  decodeAudio?: (filePath: string) => Promise<Float32Array>
+  readFile?: typeof readFile
+  fetch?: typeof fetch
+  env?: NodeJS.ProcessEnv
+  spawn?: typeof spawn
+  engine?: ParakeetEngine | null
+}
+
 export function _setImportHook(hook: (specifier: string) => Promise<unknown>): void {
   _importModule = hook
 }
@@ -47,45 +58,56 @@ export function _resetImportHook(): void {
   _engine = null
 }
 
-export async function transcribeAudio(filePath: string): Promise<TranscriptionResult> {
+export async function transcribeAudio(
+  filePath: string,
+  dependencies: VoiceDependencies = {},
+): Promise<TranscriptionResult> {
+  const importModule = dependencies.importModule ?? _importModule
   try {
-    const parakeetMod = await _importModule(PARAKEET_SPECIFIER)
-    return await transcribeWithParakeet(filePath, parakeetMod)
+    const parakeetMod = await importModule(PARAKEET_SPECIFIER)
+    return await transcribeWithParakeet(filePath, parakeetMod, dependencies)
   } catch (error) {
     if (!isModuleNotFoundError(error, PARAKEET_SPECIFIER)) {
       throw error
     }
   }
 
-  if (hasOpenAIApiKey()) {
-    return await transcribeWithOpenAI(filePath)
+  if (hasOpenAIApiKey(dependencies.env)) {
+    return await transcribeWithOpenAI(filePath, dependencies)
   }
 
   throw new Error(NO_BACKEND_ERROR)
 }
 
-export async function getAvailableBackends(): Promise<TranscriptionBackend[]> {
+export async function getAvailableBackends(dependencies: VoiceDependencies = {}): Promise<TranscriptionBackend[]> {
   const backends: TranscriptionBackend[] = []
+  const importModule = dependencies.importModule ?? _importModule
 
   try {
-    await _importModule(PARAKEET_SPECIFIER)
+    await importModule(PARAKEET_SPECIFIER)
     backends.push("parakeet")
   } catch {
     // Treat import failures as unavailable so /start can still work.
   }
 
-  if (hasOpenAIApiKey()) {
+  if (hasOpenAIApiKey(dependencies.env)) {
     backends.push("openai")
   }
 
   return backends
 }
 
-async function transcribeWithParakeet(filePath: string, parakeetMod: unknown): Promise<TranscriptionResult> {
+async function transcribeWithParakeet(
+  filePath: string,
+  parakeetMod: unknown,
+  dependencies: VoiceDependencies,
+): Promise<TranscriptionResult> {
   const startedAt = Date.now()
-  const samples = await _decodeAudio(filePath)
+  const decodeAudio = dependencies.decodeAudio ?? (dependencies.spawn ? (targetPath) => decodeAudioToSamples(targetPath, dependencies) : _decodeAudio)
+  const samples = await decodeAudio(filePath)
 
-  if (!_engine) {
+  let engineCache = dependencies.engine ?? _engine
+  if (!engineCache) {
     const mod = parakeetMod as Record<string, unknown> | null
     const ParakeetAsrEngine =
       (mod?.ParakeetAsrEngine as (new () => unknown) | undefined) ??
@@ -106,10 +128,13 @@ async function transcribeWithParakeet(filePath: string, parakeetMod: unknown): P
     }
 
     await (engine.initialize as () => Promise<void>)()
-    _engine = engine as unknown as ParakeetEngine
+    engineCache = engine as unknown as ParakeetEngine
+    if (dependencies.engine === undefined) {
+      _engine = engineCache
+    }
   }
 
-  const result = await _engine.transcribe(samples)
+  const result = await engineCache.transcribe(samples)
   const text = extractTranscribedText(result)
   if (text === undefined) {
     throw new Error("parakeet-coreml returned an unsupported transcription result")
@@ -127,14 +152,14 @@ async function transcribeWithParakeet(filePath: string, parakeetMod: unknown): P
   }
 }
 
-async function transcribeWithOpenAI(filePath: string): Promise<TranscriptionResult> {
-  const apiKey = process.env.OPENAI_API_KEY?.trim()
+async function transcribeWithOpenAI(filePath: string, dependencies: VoiceDependencies): Promise<TranscriptionResult> {
+  const apiKey = dependencies.env?.OPENAI_API_KEY?.trim() ?? process.env.OPENAI_API_KEY?.trim()
   if (!apiKey) {
     throw new Error(NO_BACKEND_ERROR)
   }
 
   const startedAt = Date.now()
-  const audioBuffer = await readFile(filePath)
+  const audioBuffer = await (dependencies.readFile ?? readFile)(filePath)
   const ext = (path.extname(filePath) || ".ogg").slice(1).toLowerCase()
   const mimeTypes: Record<string, string> = {
     ogg: "audio/ogg",
@@ -151,7 +176,8 @@ async function transcribeWithOpenAI(filePath: string): Promise<TranscriptionResu
   form.append("file", new Blob([audioBuffer], { type: mimeType }), path.basename(filePath) || "audio.ogg")
   form.append("model", "whisper-1")
 
-  const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+  const fetchDependency = dependencies.fetch ?? fetch
+  const response = await fetchDependency("https://api.openai.com/v1/audio/transcriptions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -178,15 +204,16 @@ async function transcribeWithOpenAI(filePath: string): Promise<TranscriptionResu
   }
 }
 
-function decodeAudioToSamples(filePath: string): Promise<Float32Array> {
+export function decodeAudioToSamples(filePath: string, dependencies: Pick<VoiceDependencies, "spawn"> = {}): Promise<Float32Array> {
   return new Promise<Float32Array>((resolve, reject) => {
     const stdoutChunks: Buffer[] = []
     const stderrChunks: Buffer[] = []
     let settled = false
 
-    const ffmpeg = spawn("ffmpeg", ["-i", filePath, "-ar", "16000", "-ac", "1", "-f", "f32le", "pipe:1"], {
+    const spawnDependency = dependencies.spawn ?? spawn
+    const ffmpeg = spawnDependency("ffmpeg", ["-i", filePath, "-ar", "16000", "-ac", "1", "-f", "f32le", "pipe:1"], {
       stdio: ["ignore", "pipe", "pipe"],
-    })
+    }) as unknown as ChildProcessWithoutNullStreams
 
     const finish = (callback: () => void): void => {
       if (settled) return
@@ -238,8 +265,8 @@ function decodeAudioToSamples(filePath: string): Promise<Float32Array> {
   })
 }
 
-function hasOpenAIApiKey(): boolean {
-  return Boolean(process.env.OPENAI_API_KEY?.trim())
+function hasOpenAIApiKey(env: NodeJS.ProcessEnv = process.env): boolean {
+  return Boolean(env.OPENAI_API_KEY?.trim())
 }
 
 function extractTranscribedText(result: unknown): string | undefined {

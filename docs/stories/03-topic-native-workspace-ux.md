@@ -66,8 +66,8 @@ TeleCodex should remain simpler than those products. Focus on the minimum UX nee
   - bind them to different threads
   - send prompts in alternating order
   - confirm model/workspace/effort stay isolated
-- Run `npm test`.
-- Run `npm run build`.
+- Run `bun test`.
+- Run `bun run build`.
 
 ## Acceptance Criteria
 

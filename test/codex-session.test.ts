@@ -1,9 +1,9 @@
-import { vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test"
 
 import { createDefaultLaunchProfile, createLaunchProfile } from "../src/codex-launch.js"
 import type { TeleCodexConfig } from "../src/config.js"
 
-const mockCodexState = vi.hoisted(() => {
+const mockCodexState = (() => {
   const getThread = vi.fn()
   const listThreads = vi.fn().mockReturnValue([])
   const listWorkspaces = vi.fn().mockReturnValue([])
@@ -25,9 +25,9 @@ const mockCodexState = vi.hoisted(() => {
       listModels.mockReturnValue([])
     },
   }
-})
+})()
 
-const mockState = vi.hoisted(() => {
+const mockState = (() => {
   const createdCodexOptions: any[] = []
   const codexInstances: any[] = []
   const createdThreads: any[] = []
@@ -73,18 +73,7 @@ const mockState = vi.hoisted(() => {
       Codex.mockClear()
     },
   }
-})
-
-vi.mock("@openai/codex-sdk", () => ({
-  Codex: mockState.Codex,
-}))
-
-vi.mock("../src/codex-state.js", () => ({
-  getThread: mockCodexState.getThread,
-  listThreads: mockCodexState.listThreads,
-  listWorkspaces: mockCodexState.listWorkspaces,
-  listModels: mockCodexState.listModels,
-}))
+})()
 
 import { CodexSessionService } from "../src/codex-session.js"
 
@@ -135,6 +124,12 @@ describe("CodexSessionService", () => {
     onTurnComplete: vi.fn(),
   })
 
+  const createService = (options?: Parameters<typeof CodexSessionService.create>[1], config = createConfig()) =>
+    CodexSessionService.create(config, options, {
+      CodexCtor: mockState.Codex as any,
+      codexState: mockCodexState,
+    })
+
   const streamEvents = (events: any[]) =>
     (async function* () {
       for (const event of events) {
@@ -148,7 +143,7 @@ describe("CodexSessionService", () => {
   })
 
   it("creates the service and starts an initial thread", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
 
     expect(mockState.Codex).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -181,7 +176,7 @@ describe("CodexSessionService", () => {
   })
 
   it("create accepts overrides for workspace, model, reasoning effort, launch profile, and resumeThreadId", async () => {
-    const service = await CodexSessionService.create(createConfig(), {
+    const service = await createService( {
       workspace: "/workspace/resumed",
       model: "gpt-5.4",
       reasoningEffort: "high",
@@ -214,7 +209,7 @@ describe("CodexSessionService", () => {
   })
 
   it("can defer thread creation so launch settings apply before the first thread starts", async () => {
-    const service = await CodexSessionService.create(createConfig(), {
+    const service = await createService( {
       deferThreadStart: true,
     })
 
@@ -228,7 +223,7 @@ describe("CodexSessionService", () => {
   })
 
   it("setLaunchProfile applies to newly created threads without mutating the existing thread", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const firstThread = mockState.createdThreads[0]
 
     const profile = service.setLaunchProfile("readonly")
@@ -253,7 +248,7 @@ describe("CodexSessionService", () => {
   })
 
   it("reports the active thread launch mode separately from the next selected launch profile", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
 
     service.setLaunchProfile("readonly")
 
@@ -275,7 +270,7 @@ describe("CodexSessionService", () => {
   })
 
   it("translates agent_message events into text deltas", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const thread = mockState.createdThreads[0]
     const callbacks = createCallbacks()
 
@@ -297,7 +292,7 @@ describe("CodexSessionService", () => {
   })
 
   it("maps command_execution events to tool callbacks", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const thread = mockState.createdThreads[0]
     const callbacks = createCallbacks()
 
@@ -346,7 +341,7 @@ describe("CodexSessionService", () => {
   })
 
   it("maps web_search events to tool callbacks", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const thread = mockState.createdThreads[0]
     const callbacks = createCallbacks()
 
@@ -379,7 +374,7 @@ describe("CodexSessionService", () => {
   })
 
   it("surfaces error items as failed tool events", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const thread = mockState.createdThreads[0]
     const callbacks = createCallbacks()
 
@@ -404,7 +399,7 @@ describe("CodexSessionService", () => {
   })
 
   it("emits todo list updates for started, updated, and completed items", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const thread = mockState.createdThreads[0]
     const callbacks = createCallbacks()
     const startedItems = [{ text: "Inspect repo", completed: false }]
@@ -440,7 +435,7 @@ describe("CodexSessionService", () => {
   })
 
   it("passes only the new output delta across multiple item.updated events (no duplication)", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const thread = mockState.createdThreads[0]
     const callbacks = createCallbacks()
 
@@ -502,7 +497,7 @@ describe("CodexSessionService", () => {
   })
 
   it("emits output via onToolUpdate when output only arrives in item.completed (fast command)", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const thread = mockState.createdThreads[0]
     const callbacks = createCallbacks()
 
@@ -540,7 +535,7 @@ describe("CodexSessionService", () => {
   })
 
   it("synthesizes tool events for file changes", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const thread = mockState.createdThreads[0]
     const callbacks = createCallbacks()
 
@@ -569,7 +564,7 @@ describe("CodexSessionService", () => {
   })
 
   it("triggers onAgentEnd when the turn completes", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const thread = mockState.createdThreads[0]
     const callbacks = createCallbacks()
 
@@ -583,7 +578,7 @@ describe("CodexSessionService", () => {
   })
 
   it("reports per-turn token usage and accumulates session totals", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const thread = mockState.createdThreads[0]
     const firstCallbacks = createCallbacks()
     const secondCallbacks = createCallbacks()
@@ -625,7 +620,7 @@ describe("CodexSessionService", () => {
   })
 
   it("resets displayed token totals for a newly created thread", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const thread = mockState.createdThreads[0]
     const callbacks = createCallbacks()
 
@@ -647,7 +642,7 @@ describe("CodexSessionService", () => {
   })
 
   it("keeps token totals scoped to the active thread id", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const firstThread = mockState.createdThreads[0]
     const callbacks = createCallbacks()
 
@@ -677,7 +672,7 @@ describe("CodexSessionService", () => {
   })
 
   it("throws when the turn fails", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const thread = mockState.createdThreads[0]
     const callbacks = createCallbacks()
 
@@ -689,7 +684,7 @@ describe("CodexSessionService", () => {
   })
 
   it("aborts an in-flight turn via AbortController", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const thread = mockState.createdThreads[0]
     const callbacks = createCallbacks()
 
@@ -728,7 +723,7 @@ describe("CodexSessionService", () => {
   })
 
   it("creates a new thread in a different workspace", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const codexInstance = mockState.codexInstances[0]
 
     const info = await service.newThread("/workspace/other")
@@ -756,7 +751,7 @@ describe("CodexSessionService", () => {
   })
 
   it("resumes a thread by id", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const codexInstance = mockState.codexInstances[0]
 
     const info = await service.resumeThread("thread-999")
@@ -792,7 +787,7 @@ describe("CodexSessionService", () => {
       firstUserMessage: "hello",
     })
 
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const codexInstance = mockState.codexInstances[0]
 
     const info = await service.switchSession("thread-abc")
@@ -819,7 +814,7 @@ describe("CodexSessionService", () => {
   })
 
   it("switchSession throws when a turn is in progress", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const thread = mockState.createdThreads[0]
     const callbacks = createCallbacks()
 
@@ -847,7 +842,7 @@ describe("CodexSessionService", () => {
   })
 
   it("newThread accepts an explicit model override and updates getInfo", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const codexInstance = mockState.codexInstances[0]
 
     const info = await service.newThread(undefined, "gpt-5.4")
@@ -864,7 +859,7 @@ describe("CodexSessionService", () => {
   })
 
   it("setReasoningEffort stores the effort and applies it to new threads", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const codexInstance = mockState.codexInstances[0]
 
     service.setReasoningEffort("high")
@@ -883,14 +878,14 @@ describe("CodexSessionService", () => {
   })
 
   it("setModel updates the tracked model returned by getInfo", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
 
     expect(service.setModel("o4-mini")).toBe("o4-mini")
     expect(service.getInfo().model).toBe("o4-mini")
   })
 
   it("passes text plus image inputs through to the SDK", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const thread = mockState.createdThreads[0]
     const callbacks = createCallbacks()
 
@@ -906,7 +901,7 @@ describe("CodexSessionService", () => {
   })
 
   it("prepends staged file instructions to the SDK input text", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const thread = mockState.createdThreads[0]
     const callbacks = createCallbacks()
 
@@ -922,7 +917,7 @@ describe("CodexSessionService", () => {
   })
 
   it("sends only staged file instructions when no user text", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const thread = mockState.createdThreads[0]
     const callbacks = createCallbacks()
 
@@ -935,7 +930,7 @@ describe("CodexSessionService", () => {
   })
 
   it("passes image-only inputs through to the SDK", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const thread = mockState.createdThreads[0]
     const callbacks = createCallbacks()
 
@@ -948,7 +943,7 @@ describe("CodexSessionService", () => {
   })
 
   it("keeps string inputs unchanged when calling the SDK", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const thread = mockState.createdThreads[0]
     const callbacks = createCallbacks()
 
@@ -961,7 +956,7 @@ describe("CodexSessionService", () => {
   })
 
   it("handback clears the active thread and returns thread id plus workspace", async () => {
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
     const thread = mockState.createdThreads[0]
     const callbacks = createCallbacks()
 
@@ -1005,7 +1000,7 @@ describe("CodexSessionService", () => {
       },
     ])
 
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
 
     expect(service.listAllSessions(5)).toEqual([expect.objectContaining({ id: "thread-1", cwd: "/workspace/a" })])
     expect(mockCodexState.listThreads).toHaveBeenCalledWith(5)
@@ -1014,7 +1009,7 @@ describe("CodexSessionService", () => {
   it("listWorkspaces delegates to codex-state", async () => {
     mockCodexState.listWorkspaces.mockReturnValue(["/workspace/a", "/workspace/b"])
 
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
 
     expect(service.listWorkspaces()).toEqual(["/workspace/a", "/workspace/b"])
     expect(mockCodexState.listWorkspaces).toHaveBeenCalledTimes(1)
@@ -1026,7 +1021,7 @@ describe("CodexSessionService", () => {
       { slug: "o3", displayName: "o3" },
     ])
 
-    const service = await CodexSessionService.create(createConfig())
+    const service = await createService()
 
     expect(service.listModels()).toEqual([
       { slug: "gpt-5.4", displayName: "GPT-5.4" },

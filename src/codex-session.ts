@@ -60,6 +60,16 @@ export interface CreateOptions {
   resumeThreadId?: string
 }
 
+export interface CodexSessionDependencies {
+  CodexCtor?: typeof Codex
+  codexState?: {
+    getThread: typeof getThread
+    listThreads: typeof listThreads
+    listWorkspaces: typeof listWorkspaces
+    listModels: typeof listModels
+  }
+}
+
 export type CodexPromptInput = string | { text?: string; imagePaths?: string[]; stagedFileInstructions?: string }
 
 export class CodexSessionService {
@@ -77,15 +87,24 @@ export class CodexSessionService {
   private nextLocalThreadTokenId = 1
 
   private readonly config: TeleCodexConfig
+  private readonly dependencies: Required<CodexSessionDependencies>
 
-  private constructor(config: TeleCodexConfig) {
+  private constructor(config: TeleCodexConfig, dependencies: CodexSessionDependencies = {}) {
     this.config = config
+    this.dependencies = {
+      CodexCtor: dependencies.CodexCtor ?? Codex,
+      codexState: dependencies.codexState ?? { getThread, listThreads, listWorkspaces, listModels },
+    }
     this.currentWorkspace = config.workspace
     this.currentLaunchProfile = getLaunchProfile(config, config.defaultLaunchProfileId)
   }
 
-  static async create(config: TeleCodexConfig, options?: CreateOptions): Promise<CodexSessionService> {
-    const service = new CodexSessionService(config)
+  static async create(
+    config: TeleCodexConfig,
+    options?: CreateOptions,
+    dependencies: CodexSessionDependencies = {},
+  ): Promise<CodexSessionService> {
+    const service = new CodexSessionService(config, dependencies)
     service.currentWorkspace = options?.workspace ?? config.workspace
     service.currentModel = options?.model ?? config.codexModel
     service.currentReasoningEffort = options?.reasoningEffort as ModelReasoningEffort | undefined
@@ -319,7 +338,7 @@ export class CodexSessionService {
   async switchSession(threadId: string): Promise<CodexSessionInfo> {
     this.ensureIdle("switch session")
 
-    const record = getThread(threadId)
+    const record = this.dependencies.codexState.getThread(threadId)
     const workspace = record?.cwd ?? this.currentWorkspace
     const model = record?.model || undefined
 
@@ -336,15 +355,15 @@ export class CodexSessionService {
   }
 
   listAllSessions(limit?: number): CodexThreadRecord[] {
-    return listThreads(limit ?? 20)
+    return this.dependencies.codexState.listThreads(limit ?? 20)
   }
 
   listWorkspaces(): string[] {
-    return listWorkspaces()
+    return this.dependencies.codexState.listWorkspaces()
   }
 
   listModels(): CodexModelRecord[] {
-    return listModels()
+    return this.dependencies.codexState.listModels()
   }
 
   setModel(slug: string): string {
@@ -514,7 +533,7 @@ export class CodexSessionService {
   }
 
   private resetCodexClient(): void {
-    this.codex = new Codex({
+    this.codex = new this.dependencies.CodexCtor({
       apiKey: this.config.codexApiKey,
       config: {
         approval_policy: this.currentLaunchProfile.approvalPolicy,

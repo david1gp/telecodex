@@ -1,25 +1,13 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test"
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
 import path from "node:path"
 
-import { vi } from "vitest"
 
 import { createDefaultLaunchProfile, createLaunchProfile } from "../src/codex-launch.js"
 import type { TeleCodexConfig } from "../src/config.js"
 
-const mockFsState = vi.hoisted(() => {
-  const files = new Map<string, string>()
-  const directories = new Set<string>()
-
-  return {
-    files,
-    directories,
-    reset: () => {
-      files.clear()
-      directories.clear()
-    },
-  }
-})
-
-const mockSessionState = vi.hoisted(() => {
+const mockSessionState = (() => {
   const create = vi.fn()
   const sessions: Array<{
     getInfo: ReturnType<typeof vi.fn>
@@ -55,46 +43,23 @@ const mockSessionState = vi.hoisted(() => {
     sessions,
     reset,
   }
-})
-
-vi.mock("node:fs", () => ({
-  existsSync: vi.fn(
-    (targetPath: string) => mockFsState.files.has(targetPath) || mockFsState.directories.has(targetPath),
-  ),
-  mkdirSync: vi.fn((targetPath: string) => {
-    mockFsState.directories.add(targetPath)
-  }),
-  readFileSync: vi.fn((targetPath: string) => {
-    const content = mockFsState.files.get(targetPath)
-    if (content === undefined) {
-      throw new Error(`ENOENT: ${targetPath}`)
-    }
-    return content
-  }),
-  writeFileSync: vi.fn((targetPath: string, content: string) => {
-    mockFsState.files.set(targetPath, content)
-    mockFsState.directories.add(path.dirname(targetPath))
-  }),
-}))
-
-vi.mock("../src/codex-session.js", () => ({
-  CodexSessionService: {
-    create: mockSessionState.create,
-  },
-}))
+})()
 
 import { SessionRegistry } from "../src/session-registry.js"
 
 describe("SessionRegistry", () => {
+  let tempWorkspace: string
+
   afterEach(() => {
     vi.restoreAllMocks()
+    rmSync(tempWorkspace, { recursive: true, force: true })
   })
 
   const createConfig = (overrides: Partial<TeleCodexConfig> = {}): TeleCodexConfig => ({
     telegramBotToken: "bot-token",
     telegramAllowedUserIds: [123],
     telegramAllowedUserIdSet: new Set([123]),
-    workspace: "/workspace/base",
+    workspace: tempWorkspace,
     maxFileSize: 20 * 1024 * 1024,
     codexApiKey: "codex-key",
     codexModel: "o3",
@@ -119,6 +84,18 @@ describe("SessionRegistry", () => {
     enableTelegramReactions: false,
     ...overrides,
   })
+
+  const writePersistedContexts = (workspace: string, contexts: unknown[]): string => {
+    const persistPath = path.join(workspace, ".telecodex", "contexts.json")
+    mkdirSync(path.dirname(persistPath), { recursive: true })
+    writeFileSync(persistPath, JSON.stringify(contexts))
+    return persistPath
+  }
+
+  const createRegistry = (config = createConfig()) =>
+    new SessionRegistry(config, {
+      createSession: mockSessionState.create as any,
+    })
 
   const createMockSession = (info: {
     threadId: string | null
@@ -146,7 +123,7 @@ describe("SessionRegistry", () => {
   }
 
   beforeEach(() => {
-    mockFsState.reset()
+    tempWorkspace = mkdtempSync(path.join(tmpdir(), "telecodex-registry-"))
     mockSessionState.reset()
     mockSessionState.create.mockImplementation(
       async (
@@ -176,7 +153,7 @@ describe("SessionRegistry", () => {
   })
 
   it("returns the same session instance for the same context key", async () => {
-    const registry = new SessionRegistry(createConfig())
+    const registry = createRegistry()
 
     const first = await registry.getOrCreate("123")
     const second = await registry.getOrCreate("123")
@@ -186,7 +163,7 @@ describe("SessionRegistry", () => {
   })
 
   it("returns different session instances for different context keys", async () => {
-    const registry = new SessionRegistry(createConfig())
+    const registry = createRegistry()
 
     const first = await registry.getOrCreate("123")
     const second = await registry.getOrCreate("123:42")
@@ -196,7 +173,7 @@ describe("SessionRegistry", () => {
   })
 
   it("two topic contexts in the same chat maintain independent sessions", async () => {
-    const registry = new SessionRegistry(createConfig())
+    const registry = createRegistry()
 
     const first = await registry.getOrCreate("67890:1")
     const second = await registry.getOrCreate("67890:2")
@@ -207,7 +184,7 @@ describe("SessionRegistry", () => {
   })
 
   it("removing one topic context does not affect another in the same chat", async () => {
-    const registry = new SessionRegistry(createConfig())
+    const registry = createRegistry()
 
     await registry.getOrCreate("67890:1")
     await registry.getOrCreate("67890:2")
@@ -218,10 +195,7 @@ describe("SessionRegistry", () => {
   })
 
   it("restores distinct per-context workspace, model, reasoning effort, and thread ids", async () => {
-    const persistPath = path.join("/workspace/base", ".telecodex", "contexts.json")
-    mockFsState.files.set(
-      persistPath,
-      JSON.stringify([
+    writePersistedContexts(tempWorkspace, [
         {
           contextKey: "123",
           threadId: "thread-a",
@@ -240,10 +214,9 @@ describe("SessionRegistry", () => {
           launchProfileId: "default",
           updatedAt: 20,
         },
-      ]),
-    )
+      ])
 
-    const registry = new SessionRegistry(createConfig())
+    const registry = createRegistry()
 
     const first = await registry.getOrCreate("123")
     const second = await registry.getOrCreate("123:42")
@@ -290,10 +263,7 @@ describe("SessionRegistry", () => {
 
   it("falls back to the default launch profile when persisted metadata references a missing profile", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined)
-    const persistPath = path.join("/workspace/base", ".telecodex", "contexts.json")
-    mockFsState.files.set(
-      persistPath,
-      JSON.stringify([
+    writePersistedContexts(tempWorkspace, [
         {
           contextKey: "123",
           threadId: "thread-a",
@@ -301,10 +271,9 @@ describe("SessionRegistry", () => {
           launchProfileId: "missing",
           updatedAt: 10,
         },
-      ]),
-    )
+      ])
 
-    const registry = new SessionRegistry(createConfig())
+    const registry = createRegistry()
     await registry.getOrCreate("123")
 
     expect(mockSessionState.create).toHaveBeenCalledWith(createConfig(), {
@@ -318,7 +287,7 @@ describe("SessionRegistry", () => {
   })
 
   it("updates metadata and lists contexts sorted by newest first", async () => {
-    const registry = new SessionRegistry(createConfig())
+    const registry = createRegistry()
     const first = (await registry.getOrCreate("123")) as any
     const second = (await registry.getOrCreate("123:42")) as any
     const dateNowSpy = vi.spyOn(Date, "now")
@@ -375,7 +344,7 @@ describe("SessionRegistry", () => {
   })
 
   it("persists the next selected launch profile when it differs from the active thread profile", async () => {
-    const registry = new SessionRegistry(createConfig())
+    const registry = createRegistry()
     const session = (await registry.getOrCreate("123")) as any
 
     session.setInfo({
@@ -408,7 +377,7 @@ describe("SessionRegistry", () => {
   })
 
   it("removes a context and disposes its session", async () => {
-    const registry = new SessionRegistry(createConfig())
+    const registry = createRegistry()
     const session = await registry.getOrCreate("123")
 
     registry.updateMetadata("123", session as any)
@@ -422,7 +391,7 @@ describe("SessionRegistry", () => {
   it("persists metadata and reloads it in a new registry", async () => {
     const config = createConfig()
     const persistPath = path.join(config.workspace, ".telecodex", "contexts.json")
-    const registry = new SessionRegistry(config)
+    const registry = createRegistry(config)
     const session = (await registry.getOrCreate("123")) as any
 
     session.setInfo({
@@ -439,9 +408,9 @@ describe("SessionRegistry", () => {
     })
     registry.updateMetadata("123", session as any)
 
-    expect(mockFsState.files.get(persistPath)).toContain("thread-a")
+    expect(readFileSync(persistPath, "utf8")).toContain("thread-a")
 
-    const reloaded = new SessionRegistry(config)
+    const reloaded = createRegistry(config)
     expect(reloaded.listContexts()).toEqual([
       {
         contextKey: "123",
@@ -456,7 +425,7 @@ describe("SessionRegistry", () => {
   })
 
   it("disposeAll disposes all sessions and clears the map", async () => {
-    const registry = new SessionRegistry(createConfig())
+    const registry = createRegistry()
 
     await registry.getOrCreate("100")
     await registry.getOrCreate("200")
@@ -471,7 +440,7 @@ describe("SessionRegistry", () => {
   })
 
   it("remove fires onRemove callback", async () => {
-    const registry = new SessionRegistry(createConfig())
+    const registry = createRegistry()
 
     await registry.getOrCreate("100")
     const removed: string[] = []

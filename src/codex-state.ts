@@ -55,33 +55,98 @@ const betterSqlite3Module = await import("better-sqlite3").catch(() => null)
 const BetterSqlite3 = ((betterSqlite3Module as { default?: DatabaseCtor } | null)?.default ??
   (betterSqlite3Module as DatabaseCtor | null)) as DatabaseCtor | null
 
-export function findLatestDatabase(): string | null {
-  const codexDir = getCodexDir()
-  if (!codexDir || !existsSync(codexDir)) {
-    return null
-  }
-
-  try {
-    const candidates = readdirSync(codexDir)
-      .filter((file) => /^state_.*\.sqlite$/i.test(file))
-      .map((file) => {
-        const fullPath = path.join(codexDir, file)
-        return {
-          path: fullPath,
-          modifiedAtMs: statSync(fullPath).mtimeMs,
-        }
-      })
-      .sort((left, right) => right.modifiedAtMs - left.modifiedAtMs)
-
-    return candidates[0]?.path ?? null
-  } catch {
-    return null
-  }
+export interface CodexStateDependencies {
+  existsSync?: typeof existsSync
+  readdirSync?: typeof readdirSync
+  readFileSync?: typeof readFileSync
+  statSync?: typeof statSync
+  Database?: DatabaseCtor | null
+  home?: string
 }
 
-export function listThreads(limit = 20): CodexThreadRecord[] {
-  return (
-    withDatabase((db) => {
+export interface CodexStateApi {
+  findLatestDatabase(): string | null
+  listThreads(limit?: number): CodexThreadRecord[]
+  getThread(id: string): CodexThreadRecord | null
+  listWorkspaces(): string[]
+  listModels(): CodexModelRecord[]
+}
+
+export function createCodexState(dependencies: CodexStateDependencies = {}): CodexStateApi {
+  const fs = {
+    existsSync: dependencies.existsSync ?? existsSync,
+    readdirSync: dependencies.readdirSync ?? readdirSync,
+    readFileSync: dependencies.readFileSync ?? readFileSync,
+    statSync: dependencies.statSync ?? statSync,
+  }
+  const Database = dependencies.Database === undefined ? BetterSqlite3 : dependencies.Database
+  const home = dependencies.home ?? process.env.HOME
+
+  const getCodexDirForState = (): string | null => {
+    const trimmedHome = home?.trim()
+    return trimmedHome ? path.join(trimmedHome, ".codex") : null
+  }
+
+  const getModelsCachePathForState = (): string | null => {
+    const codexDir = getCodexDirForState()
+    return codexDir ? path.join(codexDir, "models_cache.json") : null
+  }
+
+  const findLatestDatabaseForState = (): string | null => {
+    const codexDir = getCodexDirForState()
+    if (!codexDir || !fs.existsSync(codexDir)) {
+      return null
+    }
+
+    try {
+      const candidates = fs
+        .readdirSync(codexDir)
+        .filter((file) => /^state_.*\.sqlite$/i.test(String(file)))
+        .map((file) => {
+          const fullPath = path.join(codexDir, String(file))
+          return {
+            path: fullPath,
+            modifiedAtMs: fs.statSync(fullPath).mtimeMs,
+          }
+        })
+        .sort((left, right) => right.modifiedAtMs - left.modifiedAtMs)
+
+      return candidates[0]?.path ?? null
+    } catch {
+      return null
+    }
+  }
+
+  const withDatabaseForState = <T>(fn: (db: DatabaseInstance) => T): T | null => {
+    if (!Database) {
+      return null
+    }
+
+    const databasePath = findLatestDatabaseForState()
+    if (!databasePath) {
+      return null
+    }
+
+    let db: DatabaseInstance | null = null
+    try {
+      db = new Database(databasePath, { readonly: true, fileMustExist: true })
+      return fn(db)
+    } catch {
+      return null
+    } finally {
+      try {
+        db?.close()
+      } catch {
+        // Ignore close failures.
+      }
+    }
+  }
+
+  return {
+    findLatestDatabase: findLatestDatabaseForState,
+    listThreads(limit = 20): CodexThreadRecord[] {
+      return (
+        withDatabaseForState((db) => {
       const query = db.prepare(`
       SELECT id, title, cwd, model, created_at, updated_at, first_user_message
       FROM threads
@@ -92,13 +157,13 @@ export function listThreads(limit = 20): CodexThreadRecord[] {
 
       const rows = query.all(limit) as ThreadRow[]
       return rows.map(mapThreadRow)
-    }) ?? []
-  )
-}
+        }) ?? []
+      )
+    },
 
-export function getThread(id: string): CodexThreadRecord | null {
-  return (
-    withDatabase((db) => {
+    getThread(id: string): CodexThreadRecord | null {
+      return (
+        withDatabaseForState((db) => {
       const query = db.prepare(`
         SELECT id, title, cwd, model, created_at, updated_at, first_user_message
         FROM threads
@@ -108,13 +173,13 @@ export function getThread(id: string): CodexThreadRecord | null {
 
       const row = query.get(id) as ThreadRow | undefined
       return row ? mapThreadRow(row) : null
-    }) ?? null
-  )
-}
+        }) ?? null
+      )
+    },
 
-export function listWorkspaces(): string[] {
-  return (
-    withDatabase((db) => {
+    listWorkspaces(): string[] {
+      return (
+        withDatabaseForState((db) => {
       const query = db.prepare(`
         SELECT DISTINCT cwd
         FROM threads
@@ -124,18 +189,18 @@ export function listWorkspaces(): string[] {
 
       const rows = query.all() as WorkspaceRow[]
       return rows.map((row) => (typeof row.cwd === "string" ? row.cwd : "")).filter(Boolean)
-    }) ?? []
-  )
-}
+        }) ?? []
+      )
+    },
 
-export function listModels(): CodexModelRecord[] {
-  const modelsPath = getModelsCachePath()
-  if (!modelsPath || !existsSync(modelsPath)) {
-    return FALLBACK_MODELS
-  }
+    listModels(): CodexModelRecord[] {
+      const modelsPath = getModelsCachePathForState()
+      if (!modelsPath || !fs.existsSync(modelsPath)) {
+        return FALLBACK_MODELS
+      }
 
-  try {
-    const payload = JSON.parse(readFileSync(modelsPath, "utf8")) as {
+      try {
+        const payload = JSON.parse(String(fs.readFileSync(modelsPath, "utf8"))) as {
       models?: Array<{ slug?: unknown; display_name?: unknown; visibility?: unknown }>
     }
 
@@ -148,11 +213,21 @@ export function listModels(): CodexModelRecord[] {
       }))
       .filter((model) => model.slug && model.displayName)
 
-    return models.length > 0 ? models : FALLBACK_MODELS
-  } catch {
-    return FALLBACK_MODELS
+        return models.length > 0 ? models : FALLBACK_MODELS
+      } catch {
+        return FALLBACK_MODELS
+      }
+    },
   }
 }
+
+const defaultState = createCodexState()
+
+export const findLatestDatabase = (): string | null => defaultState.findLatestDatabase()
+export const listThreads = (limit = 20): CodexThreadRecord[] => defaultState.listThreads(limit)
+export const getThread = (id: string): CodexThreadRecord | null => defaultState.getThread(id)
+export const listWorkspaces = (): string[] => defaultState.listWorkspaces()
+export const listModels = (): CodexModelRecord[] => defaultState.listModels()
 
 function mapThreadRow(row: ThreadRow): CodexThreadRecord {
   return {
@@ -168,39 +243,4 @@ function mapThreadRow(row: ThreadRow): CodexThreadRecord {
 
 function fromUnixSeconds(value: unknown): Date {
   return typeof value === "number" ? new Date(value * 1000) : new Date(0)
-}
-
-function withDatabase<T>(fn: (db: DatabaseInstance) => T): T | null {
-  if (!BetterSqlite3) {
-    return null
-  }
-
-  const databasePath = findLatestDatabase()
-  if (!databasePath) {
-    return null
-  }
-
-  let db: DatabaseInstance | null = null
-  try {
-    db = new BetterSqlite3(databasePath, { readonly: true, fileMustExist: true })
-    return fn(db)
-  } catch {
-    return null
-  } finally {
-    try {
-      db?.close()
-    } catch {
-      // Ignore close failures.
-    }
-  }
-}
-
-function getCodexDir(): string | null {
-  const home = process.env.HOME?.trim()
-  return home ? path.join(home, ".codex") : null
-}
-
-function getModelsCachePath(): string | null {
-  const codexDir = getCodexDir()
-  return codexDir ? path.join(codexDir, "models_cache.json") : null
 }

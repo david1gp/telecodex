@@ -171,8 +171,8 @@ Security pass requirements:
   - select a safe profile, create a new thread, and confirm `/session` reflects the selection
   - select an unsafe profile, confirm it, create a new thread, and confirm startup/session UI mark it unsafe
   - verify the bot does not expose unsafe profiles when unsafe launch profiles are disabled
-- Run `npm test`.
-- Run `npm run build`.
+- Run `bun test`.
+- Run `bun run build`.
 
 ## Acceptance Criteria
 

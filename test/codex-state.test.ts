@@ -1,5 +1,6 @@
+import { describe, expect, it, vi } from "bun:test"
 import path from "node:path"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { FALLBACK_MODELS, createCodexState } from "../src/codex-state.js"
 
 type ThreadFixture = {
   id: string
@@ -22,32 +23,36 @@ type LoadOptions = {
   openThrows?: boolean
 }
 
-const originalHome = process.env.HOME
-
-afterEach(() => {
-  vi.doUnmock("node:fs")
-  vi.doUnmock("better-sqlite3")
-  vi.resetModules()
-
-  if (originalHome === undefined) {
-    delete process.env.HOME
-  } else {
-    process.env.HOME = originalHome
-  }
-})
-
-async function loadCodexState(options: LoadOptions = {}) {
+function loadCodexState(options: LoadOptions = {}) {
   const home = options.home ?? "/Users/tester"
   const codexDir = path.join(home, ".codex")
   const modelsPath = path.join(codexDir, "models_cache.json")
   const files = options.files ?? []
   const stats = options.stats ?? {}
   const threads = options.threads ?? []
-  process.env.HOME = home
+  const Database =
+    options.betterSqliteAvailable === false
+      ? null
+      : (class MockDatabase {
+          constructor(_databasePath: string) {
+            if (options.openThrows) {
+              throw new Error("open failed")
+            }
+          }
 
-  vi.resetModules()
+          prepare(sql: string) {
+            return {
+              all: (...args: unknown[]) => runAllQuery(sql, threads, args),
+              get: (...args: unknown[]) => runGetQuery(sql, threads, args),
+            }
+          }
 
-  vi.doMock("node:fs", () => ({
+          close(): void {}
+        } as any)
+
+  return createCodexState({
+    home,
+    Database,
     existsSync: vi.fn((targetPath: string) => {
       if (targetPath === codexDir) {
         return true
@@ -56,50 +61,23 @@ async function loadCodexState(options: LoadOptions = {}) {
         return options.modelsJson !== undefined
       }
       return files.includes(path.basename(targetPath))
-    }),
+    }) as any,
     readdirSync: vi.fn((targetPath: string) => {
       if (targetPath !== codexDir) {
         throw new Error(`Unexpected readdirSync path: ${targetPath}`)
       }
       return files
-    }),
+    }) as any,
     statSync: vi.fn((targetPath: string) => ({
       mtimeMs: stats[targetPath] ?? 0,
-    })),
+    })) as any,
     readFileSync: vi.fn((targetPath: string) => {
       if (targetPath !== modelsPath || options.modelsJson === undefined) {
         throw new Error(`ENOENT: ${targetPath}`)
       }
       return options.modelsJson
-    }),
-  }))
-
-  if (options.betterSqliteAvailable === false) {
-    vi.doMock("better-sqlite3", () => {
-      throw Object.assign(new Error("Cannot find package 'better-sqlite3'"), { code: "ERR_MODULE_NOT_FOUND" })
-    })
-  } else {
-    vi.doMock("better-sqlite3", () => ({
-      default: class MockDatabase {
-        constructor(_databasePath: string) {
-          if (options.openThrows) {
-            throw new Error("open failed")
-          }
-        }
-
-        prepare(sql: string) {
-          return {
-            all: (...args: unknown[]) => runAllQuery(sql, threads, args),
-            get: (...args: unknown[]) => runGetQuery(sql, threads, args),
-          }
-        }
-
-        close(): void {}
-      },
-    }))
-  }
-
-  return await import("../src/codex-state.js")
+    }) as any,
+  })
 }
 
 function runAllQuery(sql: string, threads: ThreadFixture[], args: unknown[]) {
@@ -289,10 +267,10 @@ describe("codex-state", () => {
 
   it("listModels falls back when models_cache.json is absent or invalid", async () => {
     const noFileState = await loadCodexState()
-    expect(noFileState.listModels()).toEqual(noFileState.FALLBACK_MODELS)
+    expect(noFileState.listModels()).toEqual(FALLBACK_MODELS)
 
     const invalidState = await loadCodexState({ modelsJson: "{not-json" })
-    expect(invalidState.listModels()).toEqual(invalidState.FALLBACK_MODELS)
+    expect(invalidState.listModels()).toEqual(FALLBACK_MODELS)
   })
 
   it("getThread returns null when not found", async () => {

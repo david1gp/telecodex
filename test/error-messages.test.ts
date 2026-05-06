@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test"
 
 import { friendlyErrorText, translateError } from "../src/error-messages.js"
 

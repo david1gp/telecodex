@@ -78,8 +78,8 @@ OpenAI constraint to respect:
   - sending a `.log` or `.txt` file
   - sending a `.zip` or archive if allowed by policy
   - receiving a generated output file back in Telegram
-- Run `npm test`.
-- Run `npm run build`.
+- Run `bun test`.
+- Run `bun run build`.
 
 ## Acceptance Criteria
 

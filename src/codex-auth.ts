@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process"
+import type { ExecFileException } from "node:child_process"
 
 export interface AuthStatus {
   authenticated: boolean
@@ -17,6 +18,12 @@ const AUTH_CACHE_TTL_MS = 30_000
 
 let cachedAuthStatus: { status: AuthStatus; expiresAt: number } | undefined
 
+export interface CodexAuthDependencies {
+  execFile?: typeof execFile
+  now?: () => number
+  env?: NodeJS.ProcessEnv
+}
+
 /**
  * Check whether Codex is currently authenticated.
  *
@@ -27,7 +34,8 @@ let cachedAuthStatus: { status: AuthStatus; expiresAt: number } | undefined
  *
  * Results are cached for 30 seconds to avoid per-message CLI invocations.
  */
-export async function checkAuthStatus(apiKey?: string): Promise<AuthStatus> {
+export async function checkAuthStatus(apiKey?: string, dependencies: CodexAuthDependencies = {}): Promise<AuthStatus> {
+  const now = dependencies.now ?? Date.now
   if (apiKey) {
     return {
       authenticated: true,
@@ -36,23 +44,23 @@ export async function checkAuthStatus(apiKey?: string): Promise<AuthStatus> {
     }
   }
 
-  if (cachedAuthStatus && Date.now() < cachedAuthStatus.expiresAt) {
+  if (cachedAuthStatus && now() < cachedAuthStatus.expiresAt) {
     return cachedAuthStatus.status
   }
 
   try {
-    const { stdout } = await runCodexCommand(["login", "status"])
+    const { stdout } = await runCodexCommand(["login", "status"], dependencies)
     const output = stdout.trim()
     const status: AuthStatus = {
       authenticated: true,
       method: "cli",
       detail: output || "Authenticated via Codex CLI",
     }
-    cachedAuthStatus = { status, expiresAt: Date.now() + AUTH_CACHE_TTL_MS }
+    cachedAuthStatus = { status, expiresAt: now() + AUTH_CACHE_TTL_MS }
     return status
   } catch (error) {
     const status = parseCommandError(error)
-    cachedAuthStatus = { status, expiresAt: Date.now() + AUTH_CACHE_TTL_MS }
+    cachedAuthStatus = { status, expiresAt: now() + AUTH_CACHE_TTL_MS }
     return status
   }
 }
@@ -68,11 +76,11 @@ export function clearAuthCache(): void {
  * Attempt to start a login flow via the Codex CLI.
  * Uses --device-auth to get a device code flow suitable for headless/remote hosts.
  */
-export async function startLogin(): Promise<LoginResult> {
+export async function startLogin(dependencies: CodexAuthDependencies = {}): Promise<LoginResult> {
   clearAuthCache()
 
   try {
-    const { stdout } = await runCodexCommand(["login", "--device-auth"])
+    const { stdout } = await runCodexCommand(["login", "--device-auth"], dependencies)
     const output = stdout.trim()
     return {
       success: true,
@@ -90,11 +98,11 @@ export async function startLogin(): Promise<LoginResult> {
 /**
  * Attempt to logout via the Codex CLI.
  */
-export async function startLogout(): Promise<LoginResult> {
+export async function startLogout(dependencies: CodexAuthDependencies = {}): Promise<LoginResult> {
   clearAuthCache()
 
   try {
-    const { stdout } = await runCodexCommand(["logout"])
+    const { stdout } = await runCodexCommand(["logout"], dependencies)
     const output = stdout.trim()
     return {
       success: true,
@@ -109,17 +117,21 @@ export async function startLogout(): Promise<LoginResult> {
   }
 }
 
-function runCodexCommand(args: string[]): Promise<{ stdout: string; stderr: string }> {
+function runCodexCommand(
+  args: string[],
+  dependencies: CodexAuthDependencies,
+): Promise<{ stdout: string; stderr: string }> {
+  const execFileDependency = dependencies.execFile ?? execFile
   return new Promise((resolve, reject) => {
-    execFile(
+    execFileDependency(
       CODEX_CLI,
       args,
       {
         timeout: COMMAND_TIMEOUT_MS,
-        env: { ...process.env },
+        env: { ...(dependencies.env ?? process.env) },
         maxBuffer: 1024 * 1024,
       },
-      (error, stdout, stderr) => {
+      (error: ExecFileException | null, stdout: string | Buffer, stderr: string | Buffer) => {
         if (error) {
           // Attach stdout/stderr to the error for richer diagnostics
           const enriched = error as Error & { stdout?: string; stderr?: string }
