@@ -957,10 +957,42 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
     const joined = backends.join(" + ")
     await safeReply(ctx, `<b>Voice backends:</b> <code>${escapeHTML(joined)}</code>`, {
       fallbackText: `Voice backends: ${joined}`,
-    })
+})
   })
 
-  bot.command("new", async (ctx) => {
+  bot.command("models_reload", async (ctx) => {
+    const contextSession = await getContextSession(ctx, { deferThreadStart: true })
+    if (!contextSession) {
+      return
+    }
+
+    const { contextKey, session } = contextSession
+    if (isBusy(contextKey)) {
+      await safeReply(ctx, escapeHTML("Cannot reload models while a prompt is running."), {
+        fallbackText: "Cannot reload models while a prompt is running.",
+      })
+      return
+    }
+
+    await safeReply(ctx, escapeHTML("Refreshing model list from Codex CLI..."), {
+      fallbackText: "Refreshing model list from Codex CLI...",
+    })
+
+    const models = session.reloadModels()
+    if (models.length === 0) {
+      await safeReply(ctx, escapeHTML("No models found."), {
+        fallbackText: "No models found.",
+      })
+      return
+    }
+
+    const html = [`<b>Models refreshed:</b> (${models.length} available)`, ""].join("\n")
+    const plain = [`Models refreshed: (${models.length} available)`, ""].join("\n")
+
+    await safeReply(ctx, html, { fallbackText: plain })
+  })
+
+  bot.command("effort", async (ctx) => {
     const chatId = ctx.chat?.id
     if (!chatId) {
       return

@@ -14,6 +14,7 @@ import {
   type CodexThreadRecord,
   getThread,
   listModels,
+  reloadModelsFromCLI,
   listThreads,
   listWorkspaces,
 } from "./codex-state.js"
@@ -364,6 +365,10 @@ export class CodexSessionService {
 
   listModels(): CodexModelRecord[] {
     return this.dependencies.codexState.listModels()
+  }
+
+  reloadModels(): CodexModelRecord[] {
+    return reloadModelsFromCLI()
   }
 
   setModel(slug: string): string {
