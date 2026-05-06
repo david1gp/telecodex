@@ -998,7 +998,7 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
     await safeReply(ctx, html, { fallbackText: plain })
   })
 
-  bot.command("effort", async (ctx) => {
+  bot.command("new", async (ctx) => {
     const chatId = ctx.chat?.id
     if (!chatId) {
       return
