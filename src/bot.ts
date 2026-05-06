@@ -2167,6 +2167,7 @@ export async function registerCommands(bot: Bot<Context>): Promise<void> {
     { command: "abort", description: "Cancel current operation" },
     { command: "launch_profiles", description: "Select launch profile" },
     { command: "model", description: "View & change model" },
+    { command: "models_reload", description: "Reload model list from Codex CLI" },
     { command: "effort", description: "Set reasoning effort" },
     { command: "auth", description: "Check auth status" },
     { command: "login", description: "Start authentication" },
