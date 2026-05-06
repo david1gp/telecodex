@@ -445,7 +445,11 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
         return
       }
 
-      const [firstChunk, ...remainingChunks] = chunks
+      const firstChunk = chunks[0]
+      if (!firstChunk) {
+        return
+      }
+      const remainingChunks = chunks.slice(1)
       if (responseMessageId) {
         await safeEditMessage(bot, chatId, responseMessageId, firstChunk.text, {
           parseMode: firstChunk.parseMode,

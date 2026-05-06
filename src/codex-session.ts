@@ -76,7 +76,10 @@ export class CodexSessionService {
   private activeTokenKey: string | null = null
   private nextLocalThreadTokenId = 1
 
-  private constructor(private readonly config: TeleCodexConfig) {
+  private readonly config: TeleCodexConfig
+
+  private constructor(config: TeleCodexConfig) {
+    this.config = config
     this.currentWorkspace = config.workspace
     this.currentLaunchProfile = getLaunchProfile(config, config.defaultLaunchProfileId)
   }

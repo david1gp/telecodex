@@ -114,7 +114,7 @@ function formatBlockquotes(text: string): string {
   for (const line of lines) {
     const match = line.match(/^&gt; (.*)$/)
     if (match) {
-      quoteLines.push(match[1])
+      quoteLines.push(match[1] ?? "")
       continue
     }
 

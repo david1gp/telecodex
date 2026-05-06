@@ -22,7 +22,10 @@ export class SessionRegistry {
   private readonly persistPath: string
   private onRemoveCallback?: (contextKey: TelegramContextKey) => void
 
-  constructor(private readonly config: TeleCodexConfig) {
+  private readonly config: TeleCodexConfig
+
+  constructor(config: TeleCodexConfig) {
+    this.config = config
     this.persistPath = path.join(config.workspace, ".telecodex", "contexts.json")
     this.loadPersistedMetadata()
   }

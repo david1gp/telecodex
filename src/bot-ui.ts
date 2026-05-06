@@ -54,7 +54,7 @@ export function renderHelpMessage(): DualText {
   for (const section of sections) {
     htmlLines.push(`<b>${escapeHTML(section.title)}</b>`)
     plainLines.push(section.title)
-    for (const [cmd, desc] of section.commands) {
+    for (const [cmd, desc] of section.commands as Array<[string, string]>) {
       htmlLines.push(`  ${cmd} — ${escapeHTML(desc)}`)
       plainLines.push(`  ${cmd} — ${desc}`)
     }
