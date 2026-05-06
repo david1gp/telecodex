@@ -21,7 +21,8 @@
     "dev": "tsx src/index.ts",
     "build": "tsc",
     "start": "bun run dist/index.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "format": "biome check --write --unsafe src/ test/"
   },
   "dependencies": {
     "@grammyjs/auto-retry": "^2.0.2",

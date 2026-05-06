@@ -1,34 +1,34 @@
-export type CodexSandboxMode = "read-only" | "workspace-write" | "danger-full-access";
-export type CodexApprovalPolicy = "never" | "on-request" | "on-failure" | "untrusted";
+export type CodexSandboxMode = "read-only" | "workspace-write" | "danger-full-access"
+export type CodexApprovalPolicy = "never" | "on-request" | "on-failure" | "untrusted"
 
 export interface CodexLaunchProfile {
-  id: string;
-  label: string;
-  sandboxMode: CodexSandboxMode;
-  approvalPolicy: CodexApprovalPolicy;
-  unsafe: boolean;
+  id: string
+  label: string
+  sandboxMode: CodexSandboxMode
+  approvalPolicy: CodexApprovalPolicy
+  unsafe: boolean
 }
 
-export const DEFAULT_LAUNCH_PROFILE_ID = "default";
+export const DEFAULT_LAUNCH_PROFILE_ID = "default"
 
 export function isCodexSandboxMode(value: string): value is CodexSandboxMode {
-  return value === "read-only" || value === "workspace-write" || value === "danger-full-access";
+  return value === "read-only" || value === "workspace-write" || value === "danger-full-access"
 }
 
 export function isCodexApprovalPolicy(value: string): value is CodexApprovalPolicy {
-  return value === "never" || value === "on-request" || value === "on-failure" || value === "untrusted";
+  return value === "never" || value === "on-request" || value === "on-failure" || value === "untrusted"
 }
 
 export function createLaunchProfile(input: {
-  id: string;
-  label: string;
-  sandboxMode: CodexSandboxMode;
-  approvalPolicy: CodexApprovalPolicy;
+  id: string
+  label: string
+  sandboxMode: CodexSandboxMode
+  approvalPolicy: CodexApprovalPolicy
 }): CodexLaunchProfile {
   return {
     ...input,
     unsafe: isUnsafeLaunchProfile(input.sandboxMode),
-  };
+  }
 }
 
 export function createDefaultLaunchProfile(
@@ -40,7 +40,7 @@ export function createDefaultLaunchProfile(
     label: "Default",
     sandboxMode,
     approvalPolicy,
-  });
+  })
 }
 
 export function createBuiltinLaunchProfiles(
@@ -61,7 +61,7 @@ export function createBuiltinLaunchProfiles(
       sandboxMode: "workspace-write",
       approvalPolicy: "on-request",
     }),
-  ];
+  ]
 
   if (options?.includeFullAccess) {
     profiles.push(
@@ -71,27 +71,25 @@ export function createBuiltinLaunchProfiles(
         sandboxMode: "danger-full-access",
         approvalPolicy: "never",
       }),
-    );
+    )
   }
 
-  return profiles;
+  return profiles
 }
 
 export function parseLaunchProfilesJson(raw: string): CodexLaunchProfile[] {
-  let parsed: unknown;
+  let parsed: unknown
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(raw)
   } catch (error) {
-    throw new Error(
-      `Invalid CODEX_LAUNCH_PROFILES_JSON: ${error instanceof Error ? error.message : String(error)}`,
-    );
+    throw new Error(`Invalid CODEX_LAUNCH_PROFILES_JSON: ${error instanceof Error ? error.message : String(error)}`)
   }
 
   if (!Array.isArray(parsed)) {
-    throw new Error("Invalid CODEX_LAUNCH_PROFILES_JSON: expected a JSON array");
+    throw new Error("Invalid CODEX_LAUNCH_PROFILES_JSON: expected a JSON array")
   }
 
-  return parsed.map((entry, index) => parseLaunchProfileEntry(entry, index));
+  return parsed.map((entry, index) => parseLaunchProfileEntry(entry, index))
 }
 
 export function findLaunchProfile(
@@ -99,56 +97,53 @@ export function findLaunchProfile(
   profileId: string | undefined,
 ): CodexLaunchProfile | undefined {
   if (!profileId) {
-    return undefined;
+    return undefined
   }
-  return profiles.find((profile) => profile.id === profileId);
+  return profiles.find((profile) => profile.id === profileId)
 }
 
-export function formatLaunchProfileBehavior(profile: Pick<CodexLaunchProfile, "sandboxMode" | "approvalPolicy">): string {
-  return `${profile.sandboxMode} / ${profile.approvalPolicy}`;
+export function formatLaunchProfileBehavior(
+  profile: Pick<CodexLaunchProfile, "sandboxMode" | "approvalPolicy">,
+): string {
+  return `${profile.sandboxMode} / ${profile.approvalPolicy}`
 }
 
 export function formatLaunchProfileLabel(profile: CodexLaunchProfile, isCurrent = false): string {
-  const prefix = profile.unsafe ? "⚠️" : "🛡️";
-  const selected = isCurrent ? " ✓" : "";
-  return `${prefix} ${profile.label} · ${formatLaunchProfileBehavior(profile)}${selected}`;
+  const prefix = profile.unsafe ? "⚠️" : "🛡️"
+  const selected = isCurrent ? " ✓" : ""
+  return `${prefix} ${profile.label} · ${formatLaunchProfileBehavior(profile)}${selected}`
 }
 
 export function isUnsafeLaunchProfile(
   profileOrSandboxMode: Pick<CodexLaunchProfile, "sandboxMode"> | CodexSandboxMode,
 ): boolean {
-  const sandboxMode =
-    typeof profileOrSandboxMode === "string" ? profileOrSandboxMode : profileOrSandboxMode.sandboxMode;
-  return sandboxMode === "danger-full-access";
+  const sandboxMode = typeof profileOrSandboxMode === "string" ? profileOrSandboxMode : profileOrSandboxMode.sandboxMode
+  return sandboxMode === "danger-full-access"
 }
 
 function parseLaunchProfileEntry(entry: unknown, index: number): CodexLaunchProfile {
   if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
-    throw new Error(
-      `Invalid CODEX_LAUNCH_PROFILES_JSON entry at index ${index}: expected an object`,
-    );
+    throw new Error(`Invalid CODEX_LAUNCH_PROFILES_JSON entry at index ${index}: expected an object`)
   }
 
-  const rawId = readStringField(entry, "id", index);
+  const rawId = readStringField(entry, "id", index)
   if (!/^[a-z0-9][a-z0-9_-]*$/.test(rawId)) {
-    throw new Error(
-      `Invalid CODEX_LAUNCH_PROFILES_JSON entry at index ${index}: id must match /^[a-z0-9][a-z0-9_-]*$/`,
-    );
+    throw new Error(`Invalid CODEX_LAUNCH_PROFILES_JSON entry at index ${index}: id must match /^[a-z0-9][a-z0-9_-]*$/`)
   }
 
-  const rawLabel = readStringField(entry, "label", index);
-  const rawSandboxMode = readStringField(entry, "sandboxMode", index);
+  const rawLabel = readStringField(entry, "label", index)
+  const rawSandboxMode = readStringField(entry, "sandboxMode", index)
   if (!isCodexSandboxMode(rawSandboxMode)) {
     throw new Error(
       `Invalid CODEX_LAUNCH_PROFILES_JSON entry at index ${index}: unsupported sandboxMode "${rawSandboxMode}"`,
-    );
+    )
   }
 
-  const rawApprovalPolicy = readStringField(entry, "approvalPolicy", index);
+  const rawApprovalPolicy = readStringField(entry, "approvalPolicy", index)
   if (!isCodexApprovalPolicy(rawApprovalPolicy)) {
     throw new Error(
       `Invalid CODEX_LAUNCH_PROFILES_JSON entry at index ${index}: unsupported approvalPolicy "${rawApprovalPolicy}"`,
-    );
+    )
   }
 
   return createLaunchProfile({
@@ -156,15 +151,13 @@ function parseLaunchProfileEntry(entry: unknown, index: number): CodexLaunchProf
     label: rawLabel,
     sandboxMode: rawSandboxMode,
     approvalPolicy: rawApprovalPolicy,
-  });
+  })
 }
 
 function readStringField(entry: object, field: string, index: number): string {
-  const value = Reflect.get(entry, field);
+  const value = Reflect.get(entry, field)
   if (typeof value !== "string" || value.trim().length === 0) {
-    throw new Error(
-      `Invalid CODEX_LAUNCH_PROFILES_JSON entry at index ${index}: missing ${field}`,
-    );
+    throw new Error(`Invalid CODEX_LAUNCH_PROFILES_JSON entry at index ${index}: missing ${field}`)
   }
-  return value.trim();
+  return value.trim()
 }

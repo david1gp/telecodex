@@ -4,8 +4,8 @@
  */
 
 export interface FriendlyError {
-  userMessage: string;
-  logMessage: string;
+  userMessage: string
+  logMessage: string
 }
 
 const ERROR_PATTERNS: Array<{ pattern: RegExp; message: string }> = [
@@ -49,38 +49,38 @@ const ERROR_PATTERNS: Array<{ pattern: RegExp; message: string }> = [
     pattern: /^(?:AbortError|The operation was aborted)/i,
     message: "⏹ Aborted",
   },
-];
+]
 
 export function translateError(error: unknown): FriendlyError {
-  const raw = extractRawMessage(error);
-  const logMessage = raw;
+  const raw = extractRawMessage(error)
+  const logMessage = raw
 
   for (const { pattern, message } of ERROR_PATTERNS) {
     if (pattern.test(raw)) {
-      return { userMessage: message, logMessage };
+      return { userMessage: message, logMessage }
     }
   }
 
-  const cleaned = stripStackTrace(raw);
-  return { userMessage: cleaned, logMessage };
+  const cleaned = stripStackTrace(raw)
+  return { userMessage: cleaned, logMessage }
 }
 
 export function friendlyErrorText(error: unknown): string {
-  return translateError(error).userMessage;
+  return translateError(error).userMessage
 }
 
 function extractRawMessage(error: unknown): string {
   if (error instanceof Error) {
-    const cause = (error as Error & { cause?: Error }).cause;
-    const base = error.message || String(error);
-    return cause?.message ? `${base}: ${cause.message}` : base;
+    const cause = (error as Error & { cause?: Error }).cause
+    const base = error.message || String(error)
+    return cause?.message ? `${base}: ${cause.message}` : base
   }
 
-  return String(error);
+  return String(error)
 }
 
 function stripStackTrace(message: string): string {
   // Remove stack frame lines (lines starting with "at ")
-  const lines = message.split("\n").filter((line) => !line.trim().startsWith("at "));
-  return lines.join("\n").trim() || message.trim();
+  const lines = message.split("\n").filter((line) => !line.trim().startsWith("at "))
+  return lines.join("\n").trim() || message.trim()
 }

@@ -1,89 +1,89 @@
-import path from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import path from "node:path"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 type ThreadFixture = {
-  id: string;
-  title: string;
-  cwd: string;
-  model: string | null;
-  created_at: number;
-  updated_at: number;
-  first_user_message: string;
-  archived?: number;
-};
+  id: string
+  title: string
+  cwd: string
+  model: string | null
+  created_at: number
+  updated_at: number
+  first_user_message: string
+  archived?: number
+}
 
 type LoadOptions = {
-  home?: string;
-  files?: string[];
-  stats?: Record<string, number>;
-  threads?: ThreadFixture[];
-  modelsJson?: string;
-  betterSqliteAvailable?: boolean;
-  openThrows?: boolean;
-};
+  home?: string
+  files?: string[]
+  stats?: Record<string, number>
+  threads?: ThreadFixture[]
+  modelsJson?: string
+  betterSqliteAvailable?: boolean
+  openThrows?: boolean
+}
 
-const originalHome = process.env.HOME;
+const originalHome = process.env.HOME
 
 afterEach(() => {
-  vi.doUnmock("node:fs");
-  vi.doUnmock("better-sqlite3");
-  vi.resetModules();
+  vi.doUnmock("node:fs")
+  vi.doUnmock("better-sqlite3")
+  vi.resetModules()
 
   if (originalHome === undefined) {
-    delete process.env.HOME;
+    delete process.env.HOME
   } else {
-    process.env.HOME = originalHome;
+    process.env.HOME = originalHome
   }
-});
+})
 
 async function loadCodexState(options: LoadOptions = {}) {
-  const home = options.home ?? "/Users/tester";
-  const codexDir = path.join(home, ".codex");
-  const modelsPath = path.join(codexDir, "models_cache.json");
-  const files = options.files ?? [];
-  const stats = options.stats ?? {};
-  const threads = options.threads ?? [];
-  process.env.HOME = home;
+  const home = options.home ?? "/Users/tester"
+  const codexDir = path.join(home, ".codex")
+  const modelsPath = path.join(codexDir, "models_cache.json")
+  const files = options.files ?? []
+  const stats = options.stats ?? {}
+  const threads = options.threads ?? []
+  process.env.HOME = home
 
-  vi.resetModules();
+  vi.resetModules()
 
   vi.doMock("node:fs", () => ({
     existsSync: vi.fn((targetPath: string) => {
       if (targetPath === codexDir) {
-        return true;
+        return true
       }
       if (targetPath === modelsPath) {
-        return options.modelsJson !== undefined;
+        return options.modelsJson !== undefined
       }
-      return files.includes(path.basename(targetPath));
+      return files.includes(path.basename(targetPath))
     }),
     readdirSync: vi.fn((targetPath: string) => {
       if (targetPath !== codexDir) {
-        throw new Error(`Unexpected readdirSync path: ${targetPath}`);
+        throw new Error(`Unexpected readdirSync path: ${targetPath}`)
       }
-      return files;
+      return files
     }),
     statSync: vi.fn((targetPath: string) => ({
       mtimeMs: stats[targetPath] ?? 0,
     })),
     readFileSync: vi.fn((targetPath: string) => {
       if (targetPath !== modelsPath || options.modelsJson === undefined) {
-        throw new Error(`ENOENT: ${targetPath}`);
+        throw new Error(`ENOENT: ${targetPath}`)
       }
-      return options.modelsJson;
+      return options.modelsJson
     }),
-  }));
+  }))
 
   if (options.betterSqliteAvailable === false) {
     vi.doMock("better-sqlite3", () => {
-      throw Object.assign(new Error("Cannot find package 'better-sqlite3'"), { code: "ERR_MODULE_NOT_FOUND" });
-    });
+      throw Object.assign(new Error("Cannot find package 'better-sqlite3'"), { code: "ERR_MODULE_NOT_FOUND" })
+    })
   } else {
     vi.doMock("better-sqlite3", () => ({
       default: class MockDatabase {
         constructor(_databasePath: string) {
           if (options.openThrows) {
-            throw new Error("open failed");
+            throw new Error("open failed")
           }
         }
 
@@ -91,56 +91,63 @@ async function loadCodexState(options: LoadOptions = {}) {
           return {
             all: (...args: unknown[]) => runAllQuery(sql, threads, args),
             get: (...args: unknown[]) => runGetQuery(sql, threads, args),
-          };
+          }
         }
 
         close(): void {}
       },
-    }));
+    }))
   }
 
-  return await import("../src/codex-state.js");
+  return await import("../src/codex-state.js")
 }
 
 function runAllQuery(sql: string, threads: ThreadFixture[], args: unknown[]) {
   if (sql.includes("SELECT DISTINCT cwd")) {
-    return [...new Set(threads.filter((thread) => thread.archived !== 1).map((thread) => thread.cwd).filter(Boolean))]
+    return [
+      ...new Set(
+        threads
+          .filter((thread) => thread.archived !== 1)
+          .map((thread) => thread.cwd)
+          .filter(Boolean),
+      ),
+    ]
       .sort()
-      .map((cwd) => ({ cwd }));
+      .map((cwd) => ({ cwd }))
   }
 
   if (sql.includes("FROM threads")) {
-    const limit = typeof args[0] === "number" ? args[0] : 20;
+    const limit = typeof args[0] === "number" ? args[0] : 20
     return threads
       .filter((thread) => thread.archived !== 1)
       .sort((left, right) => right.updated_at - left.updated_at)
-      .slice(0, limit);
+      .slice(0, limit)
   }
 
-  return [];
+  return []
 }
 
 function runGetQuery(sql: string, threads: ThreadFixture[], args: unknown[]) {
   if (sql.includes("WHERE archived = 0 AND id = ?")) {
-    const id = String(args[0] ?? "");
-    return threads.find((thread) => thread.archived !== 1 && thread.id === id);
+    const id = String(args[0] ?? "")
+    return threads.find((thread) => thread.archived !== 1 && thread.id === id)
   }
 
-  return undefined;
+  return undefined
 }
 
 describe("codex-state", () => {
   it("findLatestDatabase returns null when no sqlite files exist", async () => {
-    const state = await loadCodexState({ files: [] });
+    const state = await loadCodexState({ files: [] })
 
-    expect(state.findLatestDatabase()).toBeNull();
-  });
+    expect(state.findLatestDatabase()).toBeNull()
+  })
 
   it("findLatestDatabase returns the newest matching sqlite file", async () => {
-    const home = "/Users/tester";
-    const codexDir = path.join(home, ".codex");
-    const older = path.join(codexDir, "state_old.sqlite");
-    const newer = path.join(codexDir, "state_new.sqlite");
+    const home = "/Users/tester"
+    const codexDir = path.join(home, ".codex")
+    const older = path.join(codexDir, "state_old.sqlite")
+    const newer = path.join(codexDir, "state_new.sqlite")
     const state = await loadCodexState({
       home,
       files: ["notes.txt", "state_old.sqlite", "state_new.sqlite"],
@@ -148,16 +155,16 @@ describe("codex-state", () => {
         [older]: 100,
         [newer]: 200,
       },
-    });
+    })
 
-    expect(state.findLatestDatabase()).toBe(newer);
-  });
+    expect(state.findLatestDatabase()).toBe(newer)
+  })
 
   it("listThreads returns an empty array when better-sqlite3 is unavailable", async () => {
-    const state = await loadCodexState({ betterSqliteAvailable: false, files: ["state_main.sqlite"] });
+    const state = await loadCodexState({ betterSqliteAvailable: false, files: ["state_main.sqlite"] })
 
-    expect(state.listThreads()).toEqual([]);
-  });
+    expect(state.listThreads()).toEqual([])
+  })
 
   it("listThreads returns mapped active thread records", async () => {
     const state = await loadCodexState({
@@ -192,7 +199,7 @@ describe("codex-state", () => {
           first_user_message: "older",
         },
       ],
-    });
+    })
 
     expect(state.listThreads(10)).toEqual([
       {
@@ -213,8 +220,8 @@ describe("codex-state", () => {
         updatedAt: new Date(1_700_000_100 * 1000),
         firstUserMessage: "older",
       },
-    ]);
-  });
+    ])
+  })
 
   it("listWorkspaces returns unique sorted active workspaces", async () => {
     const state = await loadCodexState({
@@ -258,10 +265,10 @@ describe("codex-state", () => {
           archived: 1,
         },
       ],
-    });
+    })
 
-    expect(state.listWorkspaces()).toEqual(["/workspace/a", "/workspace/z"]);
-  });
+    expect(state.listWorkspaces()).toEqual(["/workspace/a", "/workspace/z"])
+  })
 
   it("listModels parses models_cache.json and filters hidden models", async () => {
     const state = await loadCodexState({
@@ -272,33 +279,33 @@ describe("codex-state", () => {
           { slug: "o3", display_name: "o3", visibility: "public" },
         ],
       }),
-    });
+    })
 
     expect(state.listModels()).toEqual([
       { slug: "gpt-5.4", displayName: "GPT-5.4" },
       { slug: "o3", displayName: "o3" },
-    ]);
-  });
+    ])
+  })
 
   it("listModels falls back when models_cache.json is absent or invalid", async () => {
-    const noFileState = await loadCodexState();
-    expect(noFileState.listModels()).toEqual(noFileState.FALLBACK_MODELS);
+    const noFileState = await loadCodexState()
+    expect(noFileState.listModels()).toEqual(noFileState.FALLBACK_MODELS)
 
-    const invalidState = await loadCodexState({ modelsJson: "{not-json" });
-    expect(invalidState.listModels()).toEqual(invalidState.FALLBACK_MODELS);
-  });
+    const invalidState = await loadCodexState({ modelsJson: "{not-json" })
+    expect(invalidState.listModels()).toEqual(invalidState.FALLBACK_MODELS)
+  })
 
   it("getThread returns null when not found", async () => {
-    const state = await loadCodexState({ files: ["state_main.sqlite"], threads: [] });
+    const state = await loadCodexState({ files: ["state_main.sqlite"], threads: [] })
 
-    expect(state.getThread("missing")).toBeNull();
-  });
+    expect(state.getThread("missing")).toBeNull()
+  })
 
   it("returns empty results gracefully when opening the database fails", async () => {
-    const state = await loadCodexState({ files: ["state_main.sqlite"], openThrows: true });
+    const state = await loadCodexState({ files: ["state_main.sqlite"], openThrows: true })
 
-    expect(state.listThreads()).toEqual([]);
-    expect(state.listWorkspaces()).toEqual([]);
-    expect(state.getThread("thread-1")).toBeNull();
-  });
-});
+    expect(state.listThreads()).toEqual([])
+    expect(state.listWorkspaces()).toEqual([])
+    expect(state.getThread("thread-1")).toBeNull()
+  })
+})

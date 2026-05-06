@@ -1,75 +1,69 @@
-import { existsSync, readFileSync } from "node:fs";
-import path from "node:path";
+import { existsSync, readFileSync } from "node:fs"
+import path from "node:path"
 
 import {
+  type CodexApprovalPolicy,
+  type CodexLaunchProfile,
+  type CodexSandboxMode,
   createBuiltinLaunchProfiles,
   createDefaultLaunchProfile,
   findLaunchProfile,
   isCodexApprovalPolicy,
   isCodexSandboxMode,
   parseLaunchProfilesJson,
-  type CodexApprovalPolicy,
-  type CodexLaunchProfile,
-  type CodexSandboxMode,
-} from "./codex-launch.js";
+} from "./codex-launch.js"
 
-export type ToolVerbosity = "all" | "summary" | "errors-only" | "none";
+export type ToolVerbosity = "all" | "summary" | "errors-only" | "none"
 
 export interface TeleCodexConfig {
-  telegramBotToken: string;
-  telegramAllowedUserIds: number[];
-  telegramAllowedUserIdSet: Set<number>;
-  workspace: string;
-  maxFileSize: number;
-  codexApiKey?: string;
-  codexModel?: string;
-  codexSandboxMode: CodexSandboxMode;
-  codexApprovalPolicy: CodexApprovalPolicy;
-  launchProfiles: CodexLaunchProfile[];
-  defaultLaunchProfileId: string;
-  enableUnsafeLaunchProfiles: boolean;
-  toolVerbosity: ToolVerbosity;
-  showLaunchBehavior: boolean;
-  showLaunchProfile: boolean;
-  showTurnTokenUsage: boolean;
-  enableTelegramLogin: boolean;
-  enableTelegramReactions: boolean;
+  telegramBotToken: string
+  telegramAllowedUserIds: number[]
+  telegramAllowedUserIdSet: Set<number>
+  workspace: string
+  maxFileSize: number
+  codexApiKey?: string
+  codexModel?: string
+  codexSandboxMode: CodexSandboxMode
+  codexApprovalPolicy: CodexApprovalPolicy
+  launchProfiles: CodexLaunchProfile[]
+  defaultLaunchProfileId: string
+  enableUnsafeLaunchProfiles: boolean
+  toolVerbosity: ToolVerbosity
+  showLaunchBehavior: boolean
+  showLaunchProfile: boolean
+  showTurnTokenUsage: boolean
+  enableTelegramLogin: boolean
+  enableTelegramReactions: boolean
 }
 
 export function loadConfig(): TeleCodexConfig {
-  loadEnvFile(path.resolve(process.cwd(), ".env"));
+  loadEnvFile(path.resolve(process.cwd(), ".env"))
 
-  const telegramBotToken = requireEnv("TELEGRAM_BOT_TOKEN");
-  const telegramAllowedUserIds = parseAllowedUserIds(requireEnv("TELEGRAM_ALLOWED_USER_IDS"));
-  const workspace = resolveWorkspace();
-  const maxFileSize = parseMaxFileSize(optionalString(process.env.MAX_FILE_SIZE));
-  const codexApiKey = optionalString(process.env.CODEX_API_KEY);
-  const codexModel = optionalString(process.env.CODEX_MODEL);
-  const codexSandboxMode = parseSandboxMode(optionalString(process.env.CODEX_SANDBOX_MODE));
-  const codexApprovalPolicy = parseApprovalPolicy(optionalString(process.env.CODEX_APPROVAL_POLICY));
-  const enableUnsafeLaunchProfiles = parseBooleanEnv(
-    optionalString(process.env.ENABLE_UNSAFE_LAUNCH_PROFILES),
-    false,
-  );
+  const telegramBotToken = requireEnv("TELEGRAM_BOT_TOKEN")
+  const telegramAllowedUserIds = parseAllowedUserIds(requireEnv("TELEGRAM_ALLOWED_USER_IDS"))
+  const workspace = resolveWorkspace()
+  const maxFileSize = parseMaxFileSize(optionalString(process.env.MAX_FILE_SIZE))
+  const codexApiKey = optionalString(process.env.CODEX_API_KEY)
+  const codexModel = optionalString(process.env.CODEX_MODEL)
+  const codexSandboxMode = parseSandboxMode(optionalString(process.env.CODEX_SANDBOX_MODE))
+  const codexApprovalPolicy = parseApprovalPolicy(optionalString(process.env.CODEX_APPROVAL_POLICY))
+  const enableUnsafeLaunchProfiles = parseBooleanEnv(optionalString(process.env.ENABLE_UNSAFE_LAUNCH_PROFILES), false)
   const launchProfiles = parseLaunchProfiles(
     optionalString(process.env.CODEX_LAUNCH_PROFILES_JSON),
     codexSandboxMode,
     codexApprovalPolicy,
     enableUnsafeLaunchProfiles,
-  );
+  )
   const defaultLaunchProfileId = parseDefaultLaunchProfileId(
     optionalString(process.env.CODEX_DEFAULT_LAUNCH_PROFILE),
     launchProfiles,
-  );
-  const toolVerbosity = parseToolVerbosity(optionalString(process.env.TOOL_VERBOSITY));
-  const showLaunchBehavior = parseBooleanEnv(optionalString(process.env.SHOW_LAUNCH_BEHAVIOR), true);
-  const showLaunchProfile = parseBooleanEnv(optionalString(process.env.SHOW_LAUNCH_PROFILE), true);
-  const showTurnTokenUsage = parseBooleanEnv(optionalString(process.env.SHOW_TURN_TOKEN_USAGE), false);
-  const enableTelegramLogin = parseBooleanEnv(optionalString(process.env.ENABLE_TELEGRAM_LOGIN), true);
-  const enableTelegramReactions = parseBooleanEnv(
-    optionalString(process.env.ENABLE_TELEGRAM_REACTIONS),
-    false,
-  );
+  )
+  const toolVerbosity = parseToolVerbosity(optionalString(process.env.TOOL_VERBOSITY))
+  const showLaunchBehavior = parseBooleanEnv(optionalString(process.env.SHOW_LAUNCH_BEHAVIOR), true)
+  const showLaunchProfile = parseBooleanEnv(optionalString(process.env.SHOW_LAUNCH_PROFILE), true)
+  const showTurnTokenUsage = parseBooleanEnv(optionalString(process.env.SHOW_TURN_TOKEN_USAGE), false)
+  const enableTelegramLogin = parseBooleanEnv(optionalString(process.env.ENABLE_TELEGRAM_LOGIN), true)
+  const enableTelegramReactions = parseBooleanEnv(optionalString(process.env.ENABLE_TELEGRAM_REACTIONS), false)
 
   return {
     telegramBotToken,
@@ -90,7 +84,7 @@ export function loadConfig(): TeleCodexConfig {
     showTurnTokenUsage,
     enableTelegramLogin,
     enableTelegramReactions,
-  };
+  }
 }
 
 /**
@@ -100,62 +94,59 @@ export function loadConfig(): TeleCodexConfig {
  */
 function resolveWorkspace(): string {
   if (isRunningInDocker()) {
-    return "/workspace";
+    return "/workspace"
   }
-  return process.cwd();
+  return process.cwd()
 }
 
 function isRunningInDocker(): boolean {
-  return existsSync("/.dockerenv") || process.env.container === "docker";
+  return existsSync("/.dockerenv") || process.env.container === "docker"
 }
 
 function loadEnvFile(envPath: string): void {
   if (!existsSync(envPath)) {
-    return;
+    return
   }
 
-  const contents = readFileSync(envPath, "utf8");
+  const contents = readFileSync(envPath, "utf8")
   for (const rawLine of contents.split(/\r?\n/)) {
-    const line = rawLine.trim();
+    const line = rawLine.trim()
     if (!line || line.startsWith("#")) {
-      continue;
+      continue
     }
 
-    const normalized = line.startsWith("export ") ? line.slice(7).trim() : line;
-    const separatorIndex = normalized.indexOf("=");
+    const normalized = line.startsWith("export ") ? line.slice(7).trim() : line
+    const separatorIndex = normalized.indexOf("=")
     if (separatorIndex === -1) {
-      continue;
+      continue
     }
 
-    const key = normalized.slice(0, separatorIndex).trim();
-    let value = normalized.slice(separatorIndex + 1).trim();
+    const key = normalized.slice(0, separatorIndex).trim()
+    let value = normalized.slice(separatorIndex + 1).trim()
 
     if (!key || process.env[key] !== undefined) {
-      continue;
+      continue
     }
 
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1)
     }
 
-    process.env[key] = value.replace(/\\n/g, "\n");
+    process.env[key] = value.replace(/\\n/g, "\n")
   }
 }
 
 function requireEnv(name: string): string {
-  const value = optionalString(process.env[name]);
+  const value = optionalString(process.env[name])
   if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
+    throw new Error(`Missing required environment variable: ${name}`)
   }
-  return value;
+  return value
 }
 
 function optionalString(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : undefined
 }
 
 function parseAllowedUserIds(raw: string): number[] {
@@ -164,84 +155,84 @@ function parseAllowedUserIds(raw: string): number[] {
     .map((value) => value.trim())
     .filter(Boolean)
     .map((value) => {
-      const parsed = Number(value);
+      const parsed = Number(value)
       if (!Number.isInteger(parsed) || parsed <= 0) {
-        throw new Error(`Invalid Telegram user id in TELEGRAM_ALLOWED_USER_IDS: ${value}`);
+        throw new Error(`Invalid Telegram user id in TELEGRAM_ALLOWED_USER_IDS: ${value}`)
       }
-      return parsed;
-    });
+      return parsed
+    })
 
   if (ids.length === 0) {
-    throw new Error("TELEGRAM_ALLOWED_USER_IDS must contain at least one user id");
+    throw new Error("TELEGRAM_ALLOWED_USER_IDS must contain at least one user id")
   }
 
-  return ids;
+  return ids
 }
 
 function parseBooleanEnv(raw: string | undefined, defaultValue: boolean): boolean {
   if (!raw) {
-    return defaultValue;
+    return defaultValue
   }
 
-  const lower = raw.toLowerCase();
+  const lower = raw.toLowerCase()
   if (lower === "true" || lower === "1" || lower === "yes") {
-    return true;
+    return true
   }
   if (lower === "false" || lower === "0" || lower === "no") {
-    return false;
+    return false
   }
 
-  console.warn(`Invalid boolean env value: "${raw}". Falling back to ${defaultValue}.`);
-  return defaultValue;
+  console.warn(`Invalid boolean env value: "${raw}". Falling back to ${defaultValue}.`)
+  return defaultValue
 }
 
 function parseMaxFileSize(raw: string | undefined): number {
   if (!raw) {
-    return 20 * 1024 * 1024;
+    return 20 * 1024 * 1024
   }
 
-  const parsed = Number(raw);
+  const parsed = Number(raw)
   if (Number.isNaN(parsed) || parsed <= 0) {
-    console.warn(`Invalid MAX_FILE_SIZE value: "${raw}". Falling back to 20 MB.`);
-    return 20 * 1024 * 1024;
+    console.warn(`Invalid MAX_FILE_SIZE value: "${raw}". Falling back to 20 MB.`)
+    return 20 * 1024 * 1024
   }
 
-  return parsed;
+  return parsed
 }
 
 function parseSandboxMode(raw: string | undefined): CodexSandboxMode {
   if (!raw) {
-    return "workspace-write";
+    return "workspace-write"
   }
 
   if (!isCodexSandboxMode(raw)) {
     console.warn(
       `Invalid CODEX_SANDBOX_MODE value: "${raw}". Expected one of: read-only, workspace-write, danger-full-access. Falling back to "workspace-write".`,
-    );
-    return "workspace-write";
+    )
+    return "workspace-write"
   }
 
-  return raw;
+  return raw
 }
 
 function parseApprovalPolicy(raw: string | undefined): CodexApprovalPolicy {
   if (!raw) {
-    return "never";
+    return "never"
   }
 
   if (!isCodexApprovalPolicy(raw)) {
     console.warn(
       `Invalid CODEX_APPROVAL_POLICY value: "${raw}". Expected one of: never, on-request, on-failure, untrusted. Falling back to "never".`,
-    );
-    return "never";
+    )
+    return "never"
   }
 
-  return raw;
+  return raw
 }
 
 function parseToolVerbosity(raw: string | undefined): ToolVerbosity {
   if (!raw) {
-    return "summary";
+    return "summary"
   }
 
   switch (raw) {
@@ -249,12 +240,12 @@ function parseToolVerbosity(raw: string | undefined): ToolVerbosity {
     case "summary":
     case "errors-only":
     case "none":
-      return raw;
+      return raw
     default:
       console.warn(
         `Invalid TOOL_VERBOSITY value: "${raw}". Expected one of: all, summary, errors-only, none. Falling back to "summary".`,
-      );
-      return "summary";
+      )
+      return "summary"
   }
 }
 
@@ -264,55 +255,50 @@ function parseLaunchProfiles(
   codexApprovalPolicy: CodexApprovalPolicy,
   enableUnsafeLaunchProfiles: boolean,
 ): CodexLaunchProfile[] {
-  const defaultProfile = createDefaultLaunchProfile(codexSandboxMode, codexApprovalPolicy);
+  const defaultProfile = createDefaultLaunchProfile(codexSandboxMode, codexApprovalPolicy)
   const profiles = createBuiltinLaunchProfiles(defaultProfile, {
     includeFullAccess: enableUnsafeLaunchProfiles,
-  });
+  })
 
   if (!raw) {
-    return profiles;
+    return profiles
   }
 
-  const parsedProfiles = parseLaunchProfilesJson(raw);
-  const profileIndexes = new Map(profiles.map((profile, index) => [profile.id, index]));
-  const explicitIds = new Set<string>();
+  const parsedProfiles = parseLaunchProfilesJson(raw)
+  const profileIndexes = new Map(profiles.map((profile, index) => [profile.id, index]))
+  const explicitIds = new Set<string>()
 
   for (const profile of parsedProfiles) {
     if (profile.id === defaultProfile.id || explicitIds.has(profile.id)) {
-      throw new Error(`Duplicate launch profile id: ${profile.id}`);
+      throw new Error(`Duplicate launch profile id: ${profile.id}`)
     }
     if (profile.unsafe && !enableUnsafeLaunchProfiles) {
-      throw new Error(
-        `Unsafe launch profile "${profile.id}" requires ENABLE_UNSAFE_LAUNCH_PROFILES=true`,
-      );
+      throw new Error(`Unsafe launch profile "${profile.id}" requires ENABLE_UNSAFE_LAUNCH_PROFILES=true`)
     }
 
-    const existingIndex = profileIndexes.get(profile.id);
+    const existingIndex = profileIndexes.get(profile.id)
     if (existingIndex === undefined) {
-      profiles.push(profile);
-      profileIndexes.set(profile.id, profiles.length - 1);
+      profiles.push(profile)
+      profileIndexes.set(profile.id, profiles.length - 1)
     } else {
-      profiles[existingIndex] = profile;
+      profiles[existingIndex] = profile
     }
 
-    explicitIds.add(profile.id);
+    explicitIds.add(profile.id)
   }
 
-  return profiles;
+  return profiles
 }
 
-function parseDefaultLaunchProfileId(
-  raw: string | undefined,
-  launchProfiles: CodexLaunchProfile[],
-): string {
+function parseDefaultLaunchProfileId(raw: string | undefined, launchProfiles: CodexLaunchProfile[]): string {
   if (!raw) {
-    return launchProfiles[0]!.id;
+    return launchProfiles[0]!.id
   }
 
-  const profile = findLaunchProfile(launchProfiles, raw);
+  const profile = findLaunchProfile(launchProfiles, raw)
   if (!profile) {
-    throw new Error(`Unknown CODEX_DEFAULT_LAUNCH_PROFILE: ${raw}`);
+    throw new Error(`Unknown CODEX_DEFAULT_LAUNCH_PROFILE: ${raw}`)
   }
 
-  return profile.id;
+  return profile.id
 }

@@ -1,8 +1,8 @@
 import { escapeHTML } from "./format.js"
 
 export interface DualText {
-  html: string;
-  plain: string;
+  html: string
+  plain: string
 }
 
 /**
@@ -46,33 +46,33 @@ export function renderHelpMessage(): DualText {
         ["/voice", "Voice transcription status"],
       ],
     },
-  ];
+  ]
 
-  const htmlLines: string[] = [];
-  const plainLines: string[] = [];
+  const htmlLines: string[] = []
+  const plainLines: string[] = []
 
   for (const section of sections) {
-    htmlLines.push(`<b>${escapeHTML(section.title)}</b>`);
-    plainLines.push(section.title);
+    htmlLines.push(`<b>${escapeHTML(section.title)}</b>`)
+    plainLines.push(section.title)
     for (const [cmd, desc] of section.commands) {
-      htmlLines.push(`  ${cmd} — ${escapeHTML(desc)}`);
-      plainLines.push(`  ${cmd} — ${desc}`);
+      htmlLines.push(`  ${cmd} — ${escapeHTML(desc)}`)
+      plainLines.push(`  ${cmd} — ${desc}`)
     }
-    htmlLines.push("");
-    plainLines.push("");
+    htmlLines.push("")
+    plainLines.push("")
   }
 
   while (htmlLines.at(-1) === "") {
-    htmlLines.pop();
+    htmlLines.pop()
   }
   while (plainLines.at(-1) === "") {
-    plainLines.pop();
+    plainLines.pop()
   }
 
   return {
     html: htmlLines.join("\n"),
     plain: plainLines.join("\n"),
-  };
+  }
 }
 
 /**
@@ -86,7 +86,7 @@ export function renderWelcomeFirstTime(authWarning?: string): DualText {
     "You can also send voice notes, photos, or documents.",
     "",
     "Type /help for all commands.",
-  ];
+  ]
   const plainLines = [
     "👋 TeleCodex is ready.",
     "",
@@ -94,14 +94,14 @@ export function renderWelcomeFirstTime(authWarning?: string): DualText {
     "You can also send voice notes, photos, or documents.",
     "",
     "Type /help for all commands.",
-  ];
+  ]
 
   if (authWarning) {
-    htmlLines.push("", `⚠️ ${escapeHTML(authWarning)}`);
-    plainLines.push("", `⚠️ ${authWarning}`);
+    htmlLines.push("", `⚠️ ${escapeHTML(authWarning)}`)
+    plainLines.push("", `⚠️ ${authWarning}`)
   }
 
-  return { html: htmlLines.join("\n"), plain: plainLines.join("\n") };
+  return { html: htmlLines.join("\n"), plain: plainLines.join("\n") }
 }
 
 /**
@@ -113,55 +113,53 @@ export function renderWelcomeReturning(
   isTopicSession: boolean,
   authWarning?: string,
 ): DualText {
-  const label = isTopicSession ? "TeleCodex (topic session)" : "TeleCodex";
+  const label = isTopicSession ? "TeleCodex (topic session)" : "TeleCodex"
 
-  const htmlLines = [`<b>👋 ${escapeHTML(label)}</b>`, "", sessionHtml];
-  const plainLines = [`👋 ${label}`, "", sessionPlain];
+  const htmlLines = [`<b>👋 ${escapeHTML(label)}</b>`, "", sessionHtml]
+  const plainLines = [`👋 ${label}`, "", sessionPlain]
 
   if (authWarning) {
-    htmlLines.push("", `⚠️ ${escapeHTML(authWarning)}`);
-    plainLines.push("", `⚠️ ${authWarning}`);
+    htmlLines.push("", `⚠️ ${escapeHTML(authWarning)}`)
+    plainLines.push("", `⚠️ ${authWarning}`)
   }
 
-  return { html: htmlLines.join("\n"), plain: plainLines.join("\n") };
+  return { html: htmlLines.join("\n"), plain: plainLines.join("\n") }
 }
 
 /**
  * Format a session button label for /sessions list.
  * Wider workspace name (12 chars), model tag, short thread snippet.
  */
-export function formatSessionLabel(
-  options: {
-    workspace: string;
-    title: string;
-    relativeTime: string;
-    model?: string;
-    isActive: boolean;
-  },
-): string {
-  const prefix = options.isActive ? "✅" : "📁";
-  const workspaceName = trimLabel(getWorkspaceShortName(options.workspace), 12) || "(unknown)";
-  const title = trimLabel(options.title || "(untitled)", 20) || "(untitled)";
-  const time = options.relativeTime;
+export function formatSessionLabel(options: {
+  workspace: string
+  title: string
+  relativeTime: string
+  model?: string
+  isActive: boolean
+}): string {
+  const prefix = options.isActive ? "✅" : "📁"
+  const workspaceName = trimLabel(getWorkspaceShortName(options.workspace), 12) || "(unknown)"
+  const title = trimLabel(options.title || "(untitled)", 20) || "(untitled)"
+  const time = options.relativeTime
 
-  let label = `${prefix} ${workspaceName} · ${title} · ${time}`;
+  let label = `${prefix} ${workspaceName} · ${title} · ${time}`
 
   if (options.model) {
-    const shortModel = trimLabel(options.model, 10);
-    label += ` · ${shortModel}`;
+    const shortModel = trimLabel(options.model, 10)
+    label += ` · ${shortModel}`
   }
 
-  return label;
+  return label
 }
 
 function trimLabel(text: string, maxLength: number): string {
-  const singleLine = text.replace(/\s+/g, " ").trim();
+  const singleLine = text.replace(/\s+/g, " ").trim()
   if (singleLine.length <= maxLength) {
-    return singleLine;
+    return singleLine
   }
-  return `${singleLine.slice(0, maxLength - 1)}…`;
+  return `${singleLine.slice(0, maxLength - 1)}…`
 }
 
 function getWorkspaceShortName(workspace: string): string {
-  return workspace.split(/[\\/]/).filter(Boolean).pop() ?? workspace;
+  return workspace.split(/[\\/]/).filter(Boolean).pop() ?? workspace
 }

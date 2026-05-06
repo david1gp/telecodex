@@ -1,21 +1,21 @@
-import { execFile } from "node:child_process";
+import { execFile } from "node:child_process"
 
 export interface AuthStatus {
-  authenticated: boolean;
-  method: "api-key" | "cli" | "none";
-  detail: string;
+  authenticated: boolean
+  method: "api-key" | "cli" | "none"
+  detail: string
 }
 
 export interface LoginResult {
-  success: boolean;
-  message: string;
+  success: boolean
+  message: string
 }
 
-const CODEX_CLI = "codex";
-const COMMAND_TIMEOUT_MS = 10_000;
-const AUTH_CACHE_TTL_MS = 30_000;
+const CODEX_CLI = "codex"
+const COMMAND_TIMEOUT_MS = 10_000
+const AUTH_CACHE_TTL_MS = 30_000
 
-let cachedAuthStatus: { status: AuthStatus; expiresAt: number } | undefined;
+let cachedAuthStatus: { status: AuthStatus; expiresAt: number } | undefined
 
 /**
  * Check whether Codex is currently authenticated.
@@ -33,27 +33,27 @@ export async function checkAuthStatus(apiKey?: string): Promise<AuthStatus> {
       authenticated: true,
       method: "api-key",
       detail: "Authenticated via CODEX_API_KEY",
-    };
+    }
   }
 
   if (cachedAuthStatus && Date.now() < cachedAuthStatus.expiresAt) {
-    return cachedAuthStatus.status;
+    return cachedAuthStatus.status
   }
 
   try {
-    const { stdout } = await runCodexCommand(["login", "status"]);
-    const output = stdout.trim();
+    const { stdout } = await runCodexCommand(["login", "status"])
+    const output = stdout.trim()
     const status: AuthStatus = {
       authenticated: true,
       method: "cli",
       detail: output || "Authenticated via Codex CLI",
-    };
-    cachedAuthStatus = { status, expiresAt: Date.now() + AUTH_CACHE_TTL_MS };
-    return status;
+    }
+    cachedAuthStatus = { status, expiresAt: Date.now() + AUTH_CACHE_TTL_MS }
+    return status
   } catch (error) {
-    const status = parseCommandError(error);
-    cachedAuthStatus = { status, expiresAt: Date.now() + AUTH_CACHE_TTL_MS };
-    return status;
+    const status = parseCommandError(error)
+    cachedAuthStatus = { status, expiresAt: Date.now() + AUTH_CACHE_TTL_MS }
+    return status
   }
 }
 
@@ -61,7 +61,7 @@ export async function checkAuthStatus(apiKey?: string): Promise<AuthStatus> {
  * Clear the cached auth status so the next check hits the CLI.
  */
 export function clearAuthCache(): void {
-  cachedAuthStatus = undefined;
+  cachedAuthStatus = undefined
 }
 
 /**
@@ -69,21 +69,21 @@ export function clearAuthCache(): void {
  * Uses --device-auth to get a device code flow suitable for headless/remote hosts.
  */
 export async function startLogin(): Promise<LoginResult> {
-  clearAuthCache();
+  clearAuthCache()
 
   try {
-    const { stdout } = await runCodexCommand(["login", "--device-auth"]);
-    const output = stdout.trim();
+    const { stdout } = await runCodexCommand(["login", "--device-auth"])
+    const output = stdout.trim()
     return {
       success: true,
       message: output || "Login initiated. Check your terminal or browser for the next step.",
-    };
+    }
   } catch (error) {
-    const detail = extractErrorMessage(error);
+    const detail = extractErrorMessage(error)
     return {
       success: false,
       message: detail || "Login command failed. Try running 'codex auth login' on the host.",
-    };
+    }
   }
 }
 
@@ -91,21 +91,21 @@ export async function startLogin(): Promise<LoginResult> {
  * Attempt to logout via the Codex CLI.
  */
 export async function startLogout(): Promise<LoginResult> {
-  clearAuthCache();
+  clearAuthCache()
 
   try {
-    const { stdout } = await runCodexCommand(["logout"]);
-    const output = stdout.trim();
+    const { stdout } = await runCodexCommand(["logout"])
+    const output = stdout.trim()
     return {
       success: true,
       message: output || "Logged out successfully.",
-    };
+    }
   } catch (error) {
-    const detail = extractErrorMessage(error);
+    const detail = extractErrorMessage(error)
     return {
       success: false,
       message: detail || "Logout command failed. Try running 'codex auth logout' on the host.",
-    };
+    }
   }
 }
 
@@ -122,56 +122,56 @@ function runCodexCommand(args: string[]): Promise<{ stdout: string; stderr: stri
       (error, stdout, stderr) => {
         if (error) {
           // Attach stdout/stderr to the error for richer diagnostics
-          const enriched = error as Error & { stdout?: string; stderr?: string };
-          enriched.stdout = typeof stdout === "string" ? stdout : "";
-          enriched.stderr = typeof stderr === "string" ? stderr : "";
-          reject(enriched);
-          return;
+          const enriched = error as Error & { stdout?: string; stderr?: string }
+          enriched.stdout = typeof stdout === "string" ? stdout : ""
+          enriched.stderr = typeof stderr === "string" ? stderr : ""
+          reject(enriched)
+          return
         }
         resolve({
           stdout: typeof stdout === "string" ? stdout : "",
           stderr: typeof stderr === "string" ? stderr : "",
-        });
+        })
       },
-    );
-  });
+    )
+  })
 }
 
 function parseCommandError(error: unknown): AuthStatus {
-  const errno = (error as NodeJS.ErrnoException)?.code;
+  const errno = (error as NodeJS.ErrnoException)?.code
   if (errno === "ENOENT") {
     return {
       authenticated: false,
       method: "none",
       detail: "Codex CLI not found. Install it or set CODEX_API_KEY.",
-    };
+    }
   }
 
-  const detail = extractErrorMessage(error) || "Not authenticated";
+  const detail = extractErrorMessage(error) || "Not authenticated"
   return {
     authenticated: false,
     method: "none",
     detail,
-  };
+  }
 }
 
 function extractErrorMessage(error: unknown): string {
   if (typeof error === "object" && error !== null) {
-    const enriched = error as { stderr?: string; stdout?: string; message?: string; signal?: string };
-    const stderr = enriched.stderr?.trim();
+    const enriched = error as { stderr?: string; stdout?: string; message?: string; signal?: string }
+    const stderr = enriched.stderr?.trim()
     if (stderr) {
-      return stderr;
+      return stderr
     }
-    const stdout = enriched.stdout?.trim();
+    const stdout = enriched.stdout?.trim()
     if (stdout) {
-      return stdout;
+      return stdout
     }
     if (enriched.signal) {
-      return `Command terminated with signal ${enriched.signal}.`;
+      return `Command terminated with signal ${enriched.signal}.`
     }
     if (enriched.message) {
-      return enriched.message;
+      return enriched.message
     }
   }
-  return error instanceof Error ? error.message : String(error);
+  return error instanceof Error ? error.message : String(error)
 }
