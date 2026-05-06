@@ -38,5 +38,10 @@
   "optionalDependencies": {
     "better-sqlite3": "^12.9.0",
     "parakeet-coreml": "^2.2.0"
+  },
+  "prettier": {
+    "semi": false,
+    "printWidth": 120,
+    "trailingComma": "all"
   }
 }
