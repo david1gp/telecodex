@@ -12,18 +12,13 @@ import { buildFileInstructions, cleanupInbox, outboxPath, type StagedFile, stage
 import { formatSessionLabel, renderHelpMessage, renderWelcomeFirstTime, renderWelcomeReturning } from "./bot-ui.js"
 import { checkAuthStatus, startLogin, startLogout } from "./codex-auth.js"
 import { findLaunchProfile, formatLaunchProfileBehavior, formatLaunchProfileLabel } from "./codex-launch.js"
-import {
-  type CodexPromptInput,
-  type CodexSessionCallbacks,
-  type CodexSessionInfo,
-  type CodexSessionService,
-} from "./codex-session.js"
+import type { CodexPromptInput, CodexSessionCallbacks, CodexSessionInfo, CodexSessionService } from "./codex-session.js"
 import { getThread } from "./codex-state.js"
 import type { TeleCodexConfig, ToolVerbosity } from "./config.js"
 import { contextKeyFromCtx, isTopicContextKey, parseContextKey, type TelegramContextKey } from "./context-key.js"
 import { friendlyErrorText } from "./error-messages.js"
 import { escapeHTML, formatTelegramHTML } from "./format.js"
-import { SessionRegistry } from "./session-registry.js"
+import type { SessionRegistry } from "./session-registry.js"
 import { getAvailableBackends, transcribeAudio } from "./voice.js"
 
 const TELEGRAM_MESSAGE_LIMIT = 4000
@@ -136,7 +131,10 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
   const getContextSession = async (
     ctx: Context,
     options?: { deferThreadStart?: boolean },
-  ): Promise<{ contextKey: TelegramContextKey; session: CodexSessionService } | null> => {
+  ): Promise<{
+    contextKey: TelegramContextKey
+    session: CodexSessionService
+  } | null> => {
     const contextKey = contextKeyFromCtx(ctx)
     if (!contextKey) {
       return null
@@ -185,7 +183,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
       await ctx.answerCallbackQuery()
       try {
         const keyboard = paginateKeyboard(buttons, page, prefix)
-        await bot.api.editMessageReplyMarkup(chatId, messageId, { reply_markup: keyboard })
+        await bot.api.editMessageReplyMarkup(chatId, messageId, {
+          reply_markup: keyboard,
+        })
       } catch (error) {
         if (!isMessageNotModifiedError(error)) {
           console.error(`Failed to update ${prefix} keyboard page`, error)
@@ -502,7 +502,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
         const plainText = "✅ Done"
 
         if (responseMessageId) {
-          await safeEditMessage(bot, chatId, responseMessageId, html, { fallbackText: plainText })
+          await safeEditMessage(bot, chatId, responseMessageId, html, {
+            fallbackText: plainText,
+          })
           await removeAbortKeyboard()
         } else {
           await safeReply(ctx, html, { fallbackText: plainText })
@@ -631,7 +633,10 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
         if (!planMessageId) {
           if (planMessageSending) return
           planMessageSending = true
-          void sendTextMessage(bot.api, chatId, rendered, { parseMode: "HTML", messageThreadId })
+          void sendTextMessage(bot.api, chatId, rendered, {
+            parseMode: "HTML",
+            messageThreadId,
+          })
             .then((msg) => {
               planMessageId = msg.message_id
             })
@@ -642,7 +647,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
               planMessageSending = false
             })
         } else {
-          void safeEditMessage(bot, chatId, planMessageId, rendered, { parseMode: "HTML" }).catch((err) => {
+          void safeEditMessage(bot, chatId, planMessageId, rendered, {
+            parseMode: "HTML",
+          }).catch((err) => {
             console.error("Failed to update plan message", err)
           })
         }
@@ -762,7 +769,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
       if (ctx.callbackQuery) {
         await ctx.answerCallbackQuery({ text: "Unauthorized" }).catch(() => {})
       } else if (ctx.chat) {
-        await safeReply(ctx, escapeHTML("Unauthorized"), { fallbackText: "Unauthorized" })
+        await safeReply(ctx, escapeHTML("Unauthorized"), {
+          fallbackText: "Unauthorized",
+        })
       }
       return
     }
@@ -771,7 +780,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
   })
 
   bot.command("start", async (ctx) => {
-    const contextSession = await getContextSession(ctx, { deferThreadStart: true })
+    const contextSession = await getContextSession(ctx, {
+      deferThreadStart: true,
+    })
     if (!contextSession) {
       return
     }
@@ -963,11 +974,13 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
     const joined = backends.join(" + ")
     await safeReply(ctx, `<b>Voice backends:</b> <code>${escapeHTML(joined)}</code>`, {
       fallbackText: `Voice backends: ${joined}`,
-})
+    })
   })
 
   bot.command("models_reload", async (ctx) => {
-    const contextSession = await getContextSession(ctx, { deferThreadStart: true })
+    const contextSession = await getContextSession(ctx, {
+      deferThreadStart: true,
+    })
     if (!contextSession) {
       return
     }
@@ -1004,7 +1017,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
       return
     }
 
-    const contextSession = await getContextSession(ctx, { deferThreadStart: true })
+    const contextSession = await getContextSession(ctx, {
+      deferThreadStart: true,
+    })
     if (!contextSession) {
       return
     }
@@ -1050,7 +1065,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
   })
 
   bot.command("abort", async (ctx) => {
-    const contextSession = await getContextSession(ctx, { deferThreadStart: true })
+    const contextSession = await getContextSession(ctx, {
+      deferThreadStart: true,
+    })
     if (!contextSession) {
       return
     }
@@ -1069,7 +1086,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
   })
 
   bot.command("retry", async (ctx) => {
-    const contextSession = await getContextSession(ctx, { deferThreadStart: true })
+    const contextSession = await getContextSession(ctx, {
+      deferThreadStart: true,
+    })
     if (!contextSession) {
       return
     }
@@ -1103,7 +1122,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
   })
 
   bot.command("session", async (ctx) => {
-    const contextSession = await getContextSession(ctx, { deferThreadStart: true })
+    const contextSession = await getContextSession(ctx, {
+      deferThreadStart: true,
+    })
     if (!contextSession) {
       return
     }
@@ -1115,7 +1136,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
     const plainLines = [`${contextLabel}:`, renderSessionInfoPlain(info, config)]
     const htmlLines = [`<b>${escapeHTML(contextLabel)}:</b>`, renderSessionInfoHTML(info, config)]
 
-    await safeReply(ctx, htmlLines.join("\n"), { fallbackText: plainLines.join("\n") })
+    await safeReply(ctx, htmlLines.join("\n"), {
+      fallbackText: plainLines.join("\n"),
+    })
   })
 
   const openLaunchProfilesPicker = async (ctx: Context): Promise<void> => {
@@ -1124,7 +1147,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
       return
     }
 
-    const contextSession = await getContextSession(ctx, { deferThreadStart: true })
+    const contextSession = await getContextSession(ctx, {
+      deferThreadStart: true,
+    })
     if (!contextSession) {
       return
     }
@@ -1185,7 +1210,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
   bot.hears(/^\/launch-profiles(?:@\w+)?$/i, openLaunchProfilesPicker)
 
   bot.command("handback", async (ctx) => {
-    const contextSession = await getContextSession(ctx, { deferThreadStart: true })
+    const contextSession = await getContextSession(ctx, {
+      deferThreadStart: true,
+    })
     if (!contextSession) {
       return
     }
@@ -1276,7 +1303,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
   })
 
   bot.command("attach", async (ctx) => {
-    const contextSession = await getContextSession(ctx, { deferThreadStart: true })
+    const contextSession = await getContextSession(ctx, {
+      deferThreadStart: true,
+    })
     if (!contextSession) {
       return
     }
@@ -1329,7 +1358,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
       return
     }
 
-    const contextSession = await getContextSession(ctx, { deferThreadStart: true })
+    const contextSession = await getContextSession(ctx, {
+      deferThreadStart: true,
+    })
     if (!contextSession) {
       return
     }
@@ -1421,7 +1452,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
       return
     }
 
-    const contextSession = await getContextSession(ctx, { deferThreadStart: true })
+    const contextSession = await getContextSession(ctx, {
+      deferThreadStart: true,
+    })
     if (!contextSession) {
       return
     }
@@ -1468,7 +1501,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
       return
     }
 
-    const contextSession = await getContextSession(ctx, { deferThreadStart: true })
+    const contextSession = await getContextSession(ctx, {
+      deferThreadStart: true,
+    })
     if (!contextSession) {
       return
     }
@@ -1531,7 +1566,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
       return
     }
 
-    const contextSession = await getContextSession(ctx, { deferThreadStart: true })
+    const contextSession = await getContextSession(ctx, {
+      deferThreadStart: true,
+    })
     if (!contextSession) {
       return
     }
@@ -1540,12 +1577,16 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
     const threadIds = pendingSessionPicks.get(contextKey)
     const threadId = threadIds?.[index]
     if (!threadId) {
-      await ctx.answerCallbackQuery({ text: "Session expired, run /sessions again" })
+      await ctx.answerCallbackQuery({
+        text: "Session expired, run /sessions again",
+      })
       return
     }
 
     if (isBusy(contextKey)) {
-      await ctx.answerCallbackQuery({ text: "Wait for the current prompt to finish" })
+      await ctx.answerCallbackQuery({
+        text: "Wait for the current prompt to finish",
+      })
       return
     }
 
@@ -1562,7 +1603,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
       const html = `<b>Switched session.</b>\n\n${renderSessionInfoHTML(info, config)}`
 
       if (messageId) {
-        await safeEditMessage(bot, chatId, messageId, html, { fallbackText: plainText })
+        await safeEditMessage(bot, chatId, messageId, html, {
+          fallbackText: plainText,
+        })
       } else {
         await safeReply(ctx, html, { fallbackText: plainText })
       }
@@ -1570,7 +1613,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
       const errHtml = `<b>Failed:</b> ${escapeHTML(friendlyErrorText(error))}`
       const errPlain = `Failed: ${friendlyErrorText(error)}`
       if (messageId) {
-        await safeEditMessage(bot, chatId, messageId, errHtml, { fallbackText: errPlain })
+        await safeEditMessage(bot, chatId, messageId, errHtml, {
+          fallbackText: errPlain,
+        })
       } else {
         await safeReply(ctx, errHtml, { fallbackText: errPlain })
       }
@@ -1588,7 +1633,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
       return
     }
 
-    const contextSession = await getContextSession(ctx, { deferThreadStart: true })
+    const contextSession = await getContextSession(ctx, {
+      deferThreadStart: true,
+    })
     if (!contextSession) {
       return
     }
@@ -1602,7 +1649,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
     }
 
     if (isBusy(contextKey)) {
-      await ctx.answerCallbackQuery({ text: "Wait for the current prompt to finish" })
+      await ctx.answerCallbackQuery({
+        text: "Wait for the current prompt to finish",
+      })
       return
     }
 
@@ -1620,7 +1669,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
       const html = `<b>${escapeHTML(label)}</b>\n\n${renderSessionInfoHTML(info, config)}`
 
       if (messageId) {
-        await safeEditMessage(bot, chatId, messageId, html, { fallbackText: plainText })
+        await safeEditMessage(bot, chatId, messageId, html, {
+          fallbackText: plainText,
+        })
       } else {
         await safeReply(ctx, html, { fallbackText: plainText })
       }
@@ -1628,7 +1679,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
       const errHtml = `<b>Failed:</b> ${escapeHTML(friendlyErrorText(error))}`
       const errPlain = `Failed: ${friendlyErrorText(error)}`
       if (messageId) {
-        await safeEditMessage(bot, chatId, messageId, errHtml, { fallbackText: errPlain })
+        await safeEditMessage(bot, chatId, messageId, errHtml, {
+          fallbackText: errPlain,
+        })
       } else {
         await safeReply(ctx, errHtml, { fallbackText: errPlain })
       }
@@ -1646,7 +1699,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
       return
     }
 
-    const contextSession = await getContextSession(ctx, { deferThreadStart: true })
+    const contextSession = await getContextSession(ctx, {
+      deferThreadStart: true,
+    })
     if (!contextSession) {
       return
     }
@@ -1655,19 +1710,25 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
     const launchProfileIds = pendingLaunchPicks.get(contextKey)
     const profileId = launchProfileIds?.[index]
     if (!profileId) {
-      await ctx.answerCallbackQuery({ text: `Expired, run ${LAUNCH_PROFILES_COMMAND} again` })
+      await ctx.answerCallbackQuery({
+        text: `Expired, run ${LAUNCH_PROFILES_COMMAND} again`,
+      })
       return
     }
 
     if (isBusy(contextKey)) {
-      await ctx.answerCallbackQuery({ text: "Wait for the current prompt to finish" })
+      await ctx.answerCallbackQuery({
+        text: "Wait for the current prompt to finish",
+      })
       return
     }
 
     const profile = findLaunchProfile(config.launchProfiles, profileId)
     if (!profile) {
       clearLaunchSelectionState(contextKey)
-      await ctx.answerCallbackQuery({ text: "Launch profile no longer exists" })
+      await ctx.answerCallbackQuery({
+        text: "Launch profile no longer exists",
+      })
       return
     }
 
@@ -1729,7 +1790,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
     ].join("\n")
 
     if (messageId) {
-      await safeEditMessage(bot, chatId, messageId, html, { fallbackText: plain })
+      await safeEditMessage(bot, chatId, messageId, html, {
+        fallbackText: plain,
+      })
     } else {
       await safeReply(ctx, html, { fallbackText: plain })
     }
@@ -1745,7 +1808,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
       return
     }
 
-    const contextSession = await getContextSession(ctx, { deferThreadStart: true })
+    const contextSession = await getContextSession(ctx, {
+      deferThreadStart: true,
+    })
     if (!contextSession) {
       return
     }
@@ -1753,7 +1818,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
     const { contextKey, session } = contextSession
     const profileId = pendingUnsafeLaunchConfirmations.get(contextKey)
     if (!profileId || profileId !== confirmedProfileId) {
-      await ctx.answerCallbackQuery({ text: `Expired, run ${LAUNCH_PROFILES_COMMAND} again` })
+      await ctx.answerCallbackQuery({
+        text: `Expired, run ${LAUNCH_PROFILES_COMMAND} again`,
+      })
       return
     }
 
@@ -1773,14 +1840,18 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
     }
 
     if (isBusy(contextKey)) {
-      await ctx.answerCallbackQuery({ text: "Wait for the current prompt to finish" })
+      await ctx.answerCallbackQuery({
+        text: "Wait for the current prompt to finish",
+      })
       return
     }
 
     const profile = findLaunchProfile(config.launchProfiles, profileId)
     if (!profile) {
       clearLaunchSelectionState(contextKey)
-      await ctx.answerCallbackQuery({ text: "Launch profile no longer exists" })
+      await ctx.answerCallbackQuery({
+        text: "Launch profile no longer exists",
+      })
       await safeEditMessage(
         bot,
         chatId,
@@ -1796,7 +1867,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
     clearLaunchSelectionState(contextKey)
     const selectedProfile = session.setLaunchProfile(profile.id)
     updateSessionMetadata(contextKey, session)
-    await ctx.answerCallbackQuery({ text: `Launch set to ${selectedProfile.label}` })
+    await ctx.answerCallbackQuery({
+      text: `Launch set to ${selectedProfile.label}`,
+    })
 
     const html = [
       `<b>Launch profile set to</b> <code>${escapeHTML(selectedProfile.label)}</code>`,
@@ -1811,7 +1884,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
       "danger-full-access confirmed for new or reattached threads.",
     ].join("\n")
 
-    await safeEditMessage(bot, chatId, messageId, html, { fallbackText: plain })
+    await safeEditMessage(bot, chatId, messageId, html, {
+      fallbackText: plain,
+    })
   })
 
   bot.callbackQuery(/^model_(.+)$/, async (ctx) => {
@@ -1823,7 +1898,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
       return
     }
 
-    const contextSession = await getContextSession(ctx, { deferThreadStart: true })
+    const contextSession = await getContextSession(ctx, {
+      deferThreadStart: true,
+    })
     if (!contextSession) {
       return
     }
@@ -1842,7 +1919,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
     }
 
     if (isBusy(contextKey)) {
-      await ctx.answerCallbackQuery({ text: "Wait for the current prompt to finish" })
+      await ctx.answerCallbackQuery({
+        text: "Wait for the current prompt to finish",
+      })
       return
     }
 
@@ -1856,7 +1935,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
       const plainText = `Model set to ${model} — applies to new threads.`
 
       if (messageId) {
-        await safeEditMessage(bot, chatId, messageId, html, { fallbackText: plainText })
+        await safeEditMessage(bot, chatId, messageId, html, {
+          fallbackText: plainText,
+        })
       } else {
         await safeReply(ctx, html, { fallbackText: plainText })
       }
@@ -1864,7 +1945,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
       const errHtml = `<b>Failed:</b> ${escapeHTML(friendlyErrorText(error))}`
       const errPlain = `Failed: ${friendlyErrorText(error)}`
       if (messageId) {
-        await safeEditMessage(bot, chatId, messageId, errHtml, { fallbackText: errPlain })
+        await safeEditMessage(bot, chatId, messageId, errHtml, {
+          fallbackText: errPlain,
+        })
       } else {
         await safeReply(ctx, errHtml, { fallbackText: errPlain })
       }
@@ -1880,7 +1963,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
       return
     }
 
-    const contextSession = await getContextSession(ctx, { deferThreadStart: true })
+    const contextSession = await getContextSession(ctx, {
+      deferThreadStart: true,
+    })
     if (!contextSession) {
       return
     }
@@ -2034,7 +2119,9 @@ export function createBot(config: TeleCodexConfig, registry: SessionRegistry): B
     }
 
     const caption = ctx.message.caption?.trim()
-    const promptInput: { text?: string; imagePaths: string[] } = { imagePaths: [tempFilePath] }
+    const promptInput: { text?: string; imagePaths: string[] } = {
+      imagePaths: [tempFilePath],
+    }
     if (caption) {
       promptInput.text = caption
       lastPromptInput.set(contextKey, caption)
@@ -2173,7 +2260,10 @@ export async function registerCommands(bot: Bot<Context>): Promise<void> {
     { command: "abort", description: "Cancel current operation" },
     { command: "launch_profiles", description: "Select launch profile" },
     { command: "model", description: "View & change model" },
-    { command: "models_reload", description: "Reload model list from Codex CLI" },
+    {
+      command: "models_reload",
+      description: "Reload model list from Codex CLI",
+    },
     { command: "effort", description: "Set reasoning effort" },
     { command: "auth", description: "Check auth status" },
     { command: "login", description: "Start authentication" },

@@ -18,7 +18,10 @@ export function contextKeyFromCtx(ctx: Context): TelegramContextKey | null {
   return contextKeyFromMessage(chatId, threadId)
 }
 
-export function parseContextKey(key: TelegramContextKey): { chatId: number; messageThreadId?: number } {
+export function parseContextKey(key: TelegramContextKey): {
+  chatId: number
+  messageThreadId?: number
+} {
   const parts = key.split(":")
   const chatId = Number(parts[0])
   const messageThreadId = parts[1] ? Number(parts[1]) : undefined

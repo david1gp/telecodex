@@ -1,5 +1,5 @@
-import { spawn } from "node:child_process"
 import type { ChildProcessWithoutNullStreams } from "node:child_process"
+import { spawn } from "node:child_process"
 import { readFile } from "node:fs/promises"
 import { createRequire } from "node:module"
 import path from "node:path"
@@ -103,7 +103,9 @@ async function transcribeWithParakeet(
   dependencies: VoiceDependencies,
 ): Promise<TranscriptionResult> {
   const startedAt = Date.now()
-  const decodeAudio = dependencies.decodeAudio ?? (dependencies.spawn ? (targetPath) => decodeAudioToSamples(targetPath, dependencies) : _decodeAudio)
+  const decodeAudio =
+    dependencies.decodeAudio ??
+    (dependencies.spawn ? (targetPath) => decodeAudioToSamples(targetPath, dependencies) : _decodeAudio)
   const samples = await decodeAudio(filePath)
 
   let engineCache = dependencies.engine ?? _engine
@@ -204,7 +206,10 @@ async function transcribeWithOpenAI(filePath: string, dependencies: VoiceDepende
   }
 }
 
-export function decodeAudioToSamples(filePath: string, dependencies: Pick<VoiceDependencies, "spawn"> = {}): Promise<Float32Array> {
+export function decodeAudioToSamples(
+  filePath: string,
+  dependencies: Pick<VoiceDependencies, "spawn"> = {},
+): Promise<Float32Array> {
   return new Promise<Float32Array>((resolve, reject) => {
     const stdoutChunks: Buffer[] = []
     const stderrChunks: Buffer[] = []

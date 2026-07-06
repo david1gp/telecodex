@@ -1,5 +1,5 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
 import { spawnSync } from "node:child_process"
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
 import path from "node:path"
 
 export interface CodexThreadRecord {
@@ -148,7 +148,7 @@ export function createCodexState(dependencies: CodexStateDependencies = {}): Cod
     listThreads(limit = 20): CodexThreadRecord[] {
       return (
         withDatabaseForState((db) => {
-      const query = db.prepare(`
+          const query = db.prepare(`
       SELECT id, title, cwd, model, created_at, updated_at, first_user_message
       FROM threads
       WHERE (archived = 0 OR archived IS NULL)
@@ -156,8 +156,8 @@ export function createCodexState(dependencies: CodexStateDependencies = {}): Cod
       LIMIT ?
     `)
 
-      const rows = query.all(limit) as ThreadRow[]
-      return rows.map(mapThreadRow)
+          const rows = query.all(limit) as ThreadRow[]
+          return rows.map(mapThreadRow)
         }) ?? []
       )
     },
@@ -165,15 +165,15 @@ export function createCodexState(dependencies: CodexStateDependencies = {}): Cod
     getThread(id: string): CodexThreadRecord | null {
       return (
         withDatabaseForState((db) => {
-      const query = db.prepare(`
+          const query = db.prepare(`
         SELECT id, title, cwd, model, created_at, updated_at, first_user_message
         FROM threads
         WHERE archived = 0 AND id = ?
         LIMIT 1
       `)
 
-      const row = query.get(id) as ThreadRow | undefined
-      return row ? mapThreadRow(row) : null
+          const row = query.get(id) as ThreadRow | undefined
+          return row ? mapThreadRow(row) : null
         }) ?? null
       )
     },
@@ -181,15 +181,15 @@ export function createCodexState(dependencies: CodexStateDependencies = {}): Cod
     listWorkspaces(): string[] {
       return (
         withDatabaseForState((db) => {
-      const query = db.prepare(`
+          const query = db.prepare(`
         SELECT DISTINCT cwd
         FROM threads
         WHERE (archived = 0 OR archived IS NULL) AND cwd IS NOT NULL AND cwd != ''
         ORDER BY cwd ASC
       `)
 
-      const rows = query.all() as WorkspaceRow[]
-      return rows.map((row) => (typeof row.cwd === "string" ? row.cwd : "")).filter(Boolean)
+          const rows = query.all() as WorkspaceRow[]
+          return rows.map((row) => (typeof row.cwd === "string" ? row.cwd : "")).filter(Boolean)
         }) ?? []
       )
     },
@@ -202,17 +202,21 @@ export function createCodexState(dependencies: CodexStateDependencies = {}): Cod
 
       try {
         const payload = JSON.parse(String(fs.readFileSync(modelsPath, "utf8"))) as {
-      models?: Array<{ slug?: unknown; display_name?: unknown; visibility?: unknown }>
-    }
+          models?: Array<{
+            slug?: unknown
+            display_name?: unknown
+            visibility?: unknown
+          }>
+        }
 
-    const models = (payload.models ?? [])
-      .filter((model) => model && typeof model === "object")
-      .filter((model) => model.visibility !== "hidden")
-      .map((model) => ({
-        slug: typeof model.slug === "string" ? model.slug : "",
-        displayName: typeof model.display_name === "string" ? model.display_name : "",
-      }))
-      .filter((model) => model.slug && model.displayName)
+        const models = (payload.models ?? [])
+          .filter((model) => model && typeof model === "object")
+          .filter((model) => model.visibility !== "hidden")
+          .map((model) => ({
+            slug: typeof model.slug === "string" ? model.slug : "",
+            displayName: typeof model.display_name === "string" ? model.display_name : "",
+          }))
+          .filter((model) => model.slug && model.displayName)
 
         return models.length > 0 ? models : FALLBACK_MODELS
       } catch {
@@ -242,7 +246,11 @@ export function reloadModelsFromCLI(): CodexModelRecord[] {
     }
 
     const payload = JSON.parse(result.stdout) as {
-      models?: Array<{ slug?: unknown; display_name?: unknown; visibility?: unknown }>
+      models?: Array<{
+        slug?: unknown
+        display_name?: unknown
+        visibility?: unknown
+      }>
     }
 
     const models = (payload.models ?? [])

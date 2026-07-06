@@ -14,7 +14,11 @@ function mockExecSuccess(stdout: string, stderr = ""): void {
 // Helper to make mockExecFile call its callback with a non-zero exit error
 function mockExecFailure(stderr: string, stdout = "", code?: string): void {
   mockExecFile.mockImplementation((_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
-    const error = new Error("Command failed") as Error & { stderr?: string; stdout?: string; code?: string }
+    const error = new Error("Command failed") as Error & {
+      stderr?: string
+      stdout?: string
+      code?: string
+    }
     error.stderr = stderr
     error.stdout = stdout
     if (code) {
@@ -45,7 +49,9 @@ describe("codex-auth", () => {
 
   describe("checkAuthStatus", () => {
     it("reports authenticated when API key is provided", async () => {
-      const status = await checkAuthStatus("sk-test-key", { execFile: mockExecFile as any })
+      const status = await checkAuthStatus("sk-test-key", {
+        execFile: mockExecFile as any,
+      })
       expect(status.authenticated).toBe(true)
       expect(status.method).toBe("api-key")
       expect(status.detail).toContain("CODEX_API_KEY")
@@ -56,7 +62,9 @@ describe("codex-auth", () => {
     it("reports authenticated when CLI auth succeeds", async () => {
       mockExecSuccess("Logged in as user@example.com")
 
-      const status = await checkAuthStatus(undefined, { execFile: mockExecFile as any })
+      const status = await checkAuthStatus(undefined, {
+        execFile: mockExecFile as any,
+      })
       expect(status.authenticated).toBe(true)
       expect(status.method).toBe("cli")
       expect(status.detail).toContain("user@example.com")
@@ -65,7 +73,9 @@ describe("codex-auth", () => {
     it("reports unauthenticated when CLI auth fails", async () => {
       mockExecFailure("Not logged in")
 
-      const status = await checkAuthStatus(undefined, { execFile: mockExecFile as any })
+      const status = await checkAuthStatus(undefined, {
+        execFile: mockExecFile as any,
+      })
       expect(status.authenticated).toBe(false)
       expect(status.method).toBe("none")
       expect(status.detail).toContain("Not logged in")
@@ -74,7 +84,9 @@ describe("codex-auth", () => {
     it("reports unauthenticated when CLI is not found", async () => {
       mockExecNotFound()
 
-      const status = await checkAuthStatus(undefined, { execFile: mockExecFile as any })
+      const status = await checkAuthStatus(undefined, {
+        execFile: mockExecFile as any,
+      })
       expect(status.authenticated).toBe(false)
       expect(status.method).toBe("none")
       expect(status.detail).toContain("not found")
@@ -82,14 +94,20 @@ describe("codex-auth", () => {
 
     it("handles command timeout (signal termination)", async () => {
       mockExecFile.mockImplementation((_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
-        const error = new Error("Command timed out") as Error & { signal?: string; stderr?: string; stdout?: string }
+        const error = new Error("Command timed out") as Error & {
+          signal?: string
+          stderr?: string
+          stdout?: string
+        }
         error.signal = "SIGTERM"
         error.stderr = ""
         error.stdout = ""
         cb(error, "", "")
       })
 
-      const status = await checkAuthStatus(undefined, { execFile: mockExecFile as any })
+      const status = await checkAuthStatus(undefined, {
+        execFile: mockExecFile as any,
+      })
       expect(status.authenticated).toBe(false)
       expect(status.method).toBe("none")
       expect(status.detail).toContain("SIGTERM")
@@ -98,7 +116,9 @@ describe("codex-auth", () => {
     it("handles empty CLI output gracefully", async () => {
       mockExecSuccess("")
 
-      const status = await checkAuthStatus(undefined, { execFile: mockExecFile as any })
+      const status = await checkAuthStatus(undefined, {
+        execFile: mockExecFile as any,
+      })
       expect(status.authenticated).toBe(true)
       expect(status.method).toBe("cli")
       expect(status.detail).toBe("Authenticated via Codex CLI")
@@ -107,8 +127,12 @@ describe("codex-auth", () => {
     it("caches results across calls", async () => {
       mockExecSuccess("Logged in")
 
-      const first = await checkAuthStatus(undefined, { execFile: mockExecFile as any })
-      const second = await checkAuthStatus(undefined, { execFile: mockExecFile as any })
+      const first = await checkAuthStatus(undefined, {
+        execFile: mockExecFile as any,
+      })
+      const second = await checkAuthStatus(undefined, {
+        execFile: mockExecFile as any,
+      })
 
       expect(first).toEqual(second)
       expect(mockExecFile).toHaveBeenCalledTimes(1)

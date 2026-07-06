@@ -3,7 +3,6 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os"
 import path from "node:path"
 
-
 import { createDefaultLaunchProfile, createLaunchProfile } from "../src/codex-launch.js"
 import type { TeleCodexConfig } from "../src/config.js"
 
@@ -196,25 +195,25 @@ describe("SessionRegistry", () => {
 
   it("restores distinct per-context workspace, model, reasoning effort, and thread ids", async () => {
     writePersistedContexts(tempWorkspace, [
-        {
-          contextKey: "123",
-          threadId: "thread-a",
-          workspace: "/workspace/a",
-          model: "o4-mini",
-          reasoningEffort: "low",
-          launchProfileId: "readonly",
-          updatedAt: 10,
-        },
-        {
-          contextKey: "123:42",
-          threadId: "thread-b",
-          workspace: "/workspace/b",
-          model: "gpt-5.4",
-          reasoningEffort: "high",
-          launchProfileId: "default",
-          updatedAt: 20,
-        },
-      ])
+      {
+        contextKey: "123",
+        threadId: "thread-a",
+        workspace: "/workspace/a",
+        model: "o4-mini",
+        reasoningEffort: "low",
+        launchProfileId: "readonly",
+        updatedAt: 10,
+      },
+      {
+        contextKey: "123:42",
+        threadId: "thread-b",
+        workspace: "/workspace/b",
+        model: "gpt-5.4",
+        reasoningEffort: "high",
+        launchProfileId: "default",
+        updatedAt: 20,
+      },
+    ])
 
     const registry = createRegistry()
 
@@ -264,14 +263,14 @@ describe("SessionRegistry", () => {
   it("falls back to the default launch profile when persisted metadata references a missing profile", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined)
     writePersistedContexts(tempWorkspace, [
-        {
-          contextKey: "123",
-          threadId: "thread-a",
-          workspace: "/workspace/a",
-          launchProfileId: "missing",
-          updatedAt: 10,
-        },
-      ])
+      {
+        contextKey: "123",
+        threadId: "thread-a",
+        workspace: "/workspace/a",
+        launchProfileId: "missing",
+        updatedAt: 10,
+      },
+    ])
 
     const registry = createRegistry()
     await registry.getOrCreate("123")

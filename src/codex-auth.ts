@@ -1,5 +1,5 @@
-import { execFile } from "node:child_process"
 import type { ExecFileException } from "node:child_process"
+import { execFile } from "node:child_process"
 
 export interface AuthStatus {
   authenticated: boolean
@@ -134,7 +134,10 @@ function runCodexCommand(
       (error: ExecFileException | null, stdout: string | Buffer, stderr: string | Buffer) => {
         if (error) {
           // Attach stdout/stderr to the error for richer diagnostics
-          const enriched = error as Error & { stdout?: string; stderr?: string }
+          const enriched = error as Error & {
+            stdout?: string
+            stderr?: string
+          }
           enriched.stdout = typeof stdout === "string" ? stdout : ""
           enriched.stderr = typeof stderr === "string" ? stderr : ""
           reject(enriched)
@@ -169,7 +172,12 @@ function parseCommandError(error: unknown): AuthStatus {
 
 function extractErrorMessage(error: unknown): string {
   if (typeof error === "object" && error !== null) {
-    const enriched = error as { stderr?: string; stdout?: string; message?: string; signal?: string }
+    const enriched = error as {
+      stderr?: string
+      stdout?: string
+      message?: string
+      signal?: string
+    }
     const stderr = enriched.stderr?.trim()
     if (stderr) {
       return stderr

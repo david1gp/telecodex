@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "bun:test"
 import path from "node:path"
-import { FALLBACK_MODELS, createCodexState } from "../src/codex-state.js"
+import { createCodexState, FALLBACK_MODELS } from "../src/codex-state.js"
 
 type ThreadFixture = {
   id: string
@@ -139,7 +139,10 @@ describe("codex-state", () => {
   })
 
   it("listThreads returns an empty array when better-sqlite3 is unavailable", async () => {
-    const state = await loadCodexState({ betterSqliteAvailable: false, files: ["state_main.sqlite"] })
+    const state = await loadCodexState({
+      betterSqliteAvailable: false,
+      files: ["state_main.sqlite"],
+    })
 
     expect(state.listThreads()).toEqual([])
   })
@@ -274,13 +277,19 @@ describe("codex-state", () => {
   })
 
   it("getThread returns null when not found", async () => {
-    const state = await loadCodexState({ files: ["state_main.sqlite"], threads: [] })
+    const state = await loadCodexState({
+      files: ["state_main.sqlite"],
+      threads: [],
+    })
 
     expect(state.getThread("missing")).toBeNull()
   })
 
   it("returns empty results gracefully when opening the database fails", async () => {
-    const state = await loadCodexState({ files: ["state_main.sqlite"], openThrows: true })
+    const state = await loadCodexState({
+      files: ["state_main.sqlite"],
+      openThrows: true,
+    })
 
     expect(state.listThreads()).toEqual([])
     expect(state.listWorkspaces()).toEqual([])

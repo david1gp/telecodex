@@ -48,7 +48,10 @@ describe("context-key", () => {
   it("parses and round-trips context keys", () => {
     const key = contextKeyFromMessage(67890, 42)
 
-    expect(parseContextKey(key)).toEqual({ chatId: 67890, messageThreadId: 42 })
+    expect(parseContextKey(key)).toEqual({
+      chatId: 67890,
+      messageThreadId: 42,
+    })
     expect(contextKeyFromMessage(parseContextKey(key).chatId, parseContextKey(key).messageThreadId)).toBe(key)
   })
 

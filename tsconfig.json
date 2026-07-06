@@ -9,9 +9,7 @@
     //
     // dom
     //
-    "lib": [
-      "esnext"
-    ],
+    "lib": ["esnext"],
     "types": ["bun"],
     //
     // performance
@@ -48,17 +46,6 @@
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": [
-    "src",
-    "test"
-  ],
-  "exclude": [
-    ".github",
-    "build",
-    "dist",
-    "out",
-    "data",
-    "docs",
-    "node_modules",
-  ],
+  "include": ["src", "test"],
+  "exclude": [".github", "build", "dist", "out", "data", "docs", "node_modules"]
 }

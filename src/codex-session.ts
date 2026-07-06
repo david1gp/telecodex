@@ -14,9 +14,9 @@ import {
   type CodexThreadRecord,
   getThread,
   listModels,
-  reloadModelsFromCLI,
   listThreads,
   listWorkspaces,
+  reloadModelsFromCLI,
 } from "./codex-state.js"
 import type { TeleCodexConfig } from "./config.js"
 
@@ -98,7 +98,12 @@ export class CodexSessionService {
     this.config = config
     this.dependencies = {
       CodexCtor: dependencies.CodexCtor ?? Codex,
-      codexState: dependencies.codexState ?? { getThread, listThreads, listWorkspaces, listModels },
+      codexState: dependencies.codexState ?? {
+        getThread,
+        listThreads,
+        listWorkspaces,
+        listModels,
+      },
     }
     this.currentWorkspace = config.workspace
     this.currentLaunchProfile = getLaunchProfile(config, config.defaultLaunchProfileId)
@@ -284,7 +289,10 @@ export class CodexSessionService {
             tokens.output += u.output_tokens
             callbacks.onTurnComplete?.({
               inputTokens: { last: u.input_tokens, total: tokens.input },
-              cachedInputTokens: { last: u.cached_input_tokens, total: tokens.cached },
+              cachedInputTokens: {
+                last: u.cached_input_tokens,
+                total: tokens.cached,
+              },
               outputTokens: { last: u.output_tokens, total: tokens.output },
             })
             callbacks.onAgentEnd()
@@ -319,7 +327,11 @@ export class CodexSessionService {
     this.currentWorkspace = effectiveWorkspace
     this.currentThreadId = this.thread.id ?? null
     this.activeTokenKey = this.currentThreadId ?? `local:${this.nextLocalThreadTokenId++}`
-    this.threadTokens.set(this.activeTokenKey, { input: 0, cached: 0, output: 0 })
+    this.threadTokens.set(this.activeTokenKey, {
+      input: 0,
+      cached: 0,
+      output: 0,
+    })
     if (model) {
       this.currentModel = model
     }
@@ -395,7 +407,10 @@ export class CodexSessionService {
   }
 
   handback(): { threadId: string | null; workspace: string } {
-    const info = { threadId: this.currentThreadId, workspace: this.currentWorkspace }
+    const info = {
+      threadId: this.currentThreadId,
+      workspace: this.currentWorkspace,
+    }
     this.abortController?.abort()
     this.abortController = null
     this.thread = null
@@ -488,7 +503,11 @@ export class CodexSessionService {
     }
   }
 
-  private getActiveThreadTokens(): { input: number; cached: number; output: number } {
+  private getActiveThreadTokens(): {
+    input: number
+    cached: number
+    output: number
+  } {
     if (!this.activeTokenKey) {
       return { input: 0, cached: 0, output: 0 }
     }
@@ -496,7 +515,11 @@ export class CodexSessionService {
     return this.ensureThreadTokens(this.activeTokenKey)
   }
 
-  private ensureThreadTokens(key: string): { input: number; cached: number; output: number } {
+  private ensureThreadTokens(key: string): {
+    input: number
+    cached: number
+    output: number
+  } {
     let tokens = this.threadTokens.get(key)
     if (!tokens) {
       tokens = { input: 0, cached: 0, output: 0 }

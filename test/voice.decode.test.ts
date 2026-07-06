@@ -93,9 +93,7 @@ describe("voice decoding", () => {
         }),
         engine: null,
       }),
-    ).rejects.toThrow(
-      "ffmpeg returned invalid float32 PCM output",
-    )
+    ).rejects.toThrow("ffmpeg returned invalid float32 PCM output")
   })
 
   it("surfaces a friendly error when ffmpeg cannot be spawned", async () => {

@@ -176,7 +176,7 @@ describe("CodexSessionService", () => {
   })
 
   it("create accepts overrides for workspace, model, reasoning effort, launch profile, and resumeThreadId", async () => {
-    const service = await createService( {
+    const service = await createService({
       workspace: "/workspace/resumed",
       model: "gpt-5.4",
       reasoningEffort: "high",
@@ -209,7 +209,7 @@ describe("CodexSessionService", () => {
   })
 
   it("can defer thread creation so launch settings apply before the first thread starts", async () => {
-    const service = await createService( {
+    const service = await createService({
       deferThreadStart: true,
     })
 
@@ -277,9 +277,18 @@ describe("CodexSessionService", () => {
     thread.runStreamed.mockResolvedValueOnce({
       events: streamEvents([
         { type: "thread.started", thread_id: "thread-123" },
-        { type: "item.started", item: { id: "msg-1", type: "agent_message", text: "Hel" } },
-        { type: "item.updated", item: { id: "msg-1", type: "agent_message", text: "Hello" } },
-        { type: "item.completed", item: { id: "msg-1", type: "agent_message", text: "Hello world" } },
+        {
+          type: "item.started",
+          item: { id: "msg-1", type: "agent_message", text: "Hel" },
+        },
+        {
+          type: "item.updated",
+          item: { id: "msg-1", type: "agent_message", text: "Hello" },
+        },
+        {
+          type: "item.completed",
+          item: { id: "msg-1", type: "agent_message", text: "Hello world" },
+        },
         { type: "turn.completed", usage },
       ]),
     })
@@ -594,8 +603,12 @@ describe("CodexSessionService", () => {
     }
 
     thread.runStreamed
-      .mockResolvedValueOnce({ events: streamEvents([{ type: "turn.completed", usage: firstUsage }]) })
-      .mockResolvedValueOnce({ events: streamEvents([{ type: "turn.completed", usage: secondUsage }]) })
+      .mockResolvedValueOnce({
+        events: streamEvents([{ type: "turn.completed", usage: firstUsage }]),
+      })
+      .mockResolvedValueOnce({
+        events: streamEvents([{ type: "turn.completed", usage: secondUsage }]),
+      })
 
     await service.prompt("first", firstCallbacks)
     await service.prompt("second", secondCallbacks)
@@ -906,7 +919,10 @@ describe("CodexSessionService", () => {
     const callbacks = createCallbacks()
 
     await service.prompt(
-      { text: "analyze this", stagedFileInstructions: "Files staged at /inbox:\n- log.txt" },
+      {
+        text: "analyze this",
+        stagedFileInstructions: "Files staged at /inbox:\n- log.txt",
+      },
       callbacks,
     )
 
