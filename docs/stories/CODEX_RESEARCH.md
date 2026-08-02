@@ -6,7 +6,7 @@
 
 ## SDK Comparison
 
-### Pi SDK (`@mariozechner/pi-coding-agent`)
+### Pi SDK (`@earendil-works/pi-coding-agent`)
 - **In-process**: Creates an `AgentSession` object directly in the Node.js process
 - **Event system**: `session.subscribe()` with typed events (`message_update`, `tool_execution_start/update/end`, `agent_end`)
 - **Session management**: `SessionManager` with JSONL files under `~/.pi/agent/sessions/`
